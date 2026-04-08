@@ -47,7 +47,7 @@ class ViewCountSettingsTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 
 						if (this.plugin.settings.syncToFrontmatter) {
-							await viewCountCache.syncViewCountToFrontmatter();
+							await viewCountCache.syncPropertiesToFrontmatter();
 						}
 						await viewCountCache.debounceRefresh();
 					})
@@ -81,7 +81,7 @@ class ViewCountSettingsTab extends PluginSettingTab {
 						this.plugin.settings.syncToFrontmatter = value;
 
 						await this.plugin.saveSettings();
-						await viewCountCache.syncViewCountToFrontmatter();
+						await viewCountCache.syncPropertiesToFrontmatter();
 					})
 			);
 
@@ -134,7 +134,7 @@ class ViewCountSettingsTab extends PluginSettingTab {
 						this.plugin.settings.syncViewDateToFrontmatter = value;
 
 						await this.plugin.saveSettings();
-						await viewCountCache.syncViewCountToFrontmatter();
+						await viewCountCache.syncPropertiesToFrontmatter();
 					})
 			);
 

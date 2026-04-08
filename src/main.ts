@@ -8,6 +8,7 @@ import { formatMessageForLogger, stringToLogLevel } from "./logger";
 import _ from "lodash";
 import { isVersionLessThan } from "./utils";
 import ViewCountCache from "./storage/view-count-cache";
+import EventManager from "./event/event-manager";
 import { migrateFileStorage } from "./migration/migrate-file-storage";
 import { migratePropertyStorage } from "./migration/migrate-property-storage";
 import { ViewCountPluginSettings_1_2_2 } from "./types/types-1.2.2";
@@ -67,6 +68,7 @@ export default class ViewCountPlugin extends Plugin {
 
 	onunload() {
 		this.viewCountStatusBarItem?.remove();
+		EventManager.destroy();
 	}
 
 	async loadSettings() {

@@ -22,14 +22,6 @@ export const getFilePath = (app: App) => {
 	return normalizePath(app.vault.configDir + "/" + VIEW_COUNT_FILE);
 }
 
-export const setPropertyType = async (app: App, name: string, value: string) => {
-	await (app as any).metadataTypeManager.setType(name, value);
-}
-
-export const getPropertyType = async (app: App, name: string): Promise<string> => {
-	return (app as any).metadataTypeManager.getAssignedType(name);
-}
-
 export const shouldTrackFile = (file: TFile, excludedPaths: string[]) => {
 	return !excludedPaths.find(path => {
 		//Normalize the path so that it will match the file path

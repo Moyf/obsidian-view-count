@@ -9,7 +9,6 @@ export default class EventManager {
 		this.eventListeners = {} as Record<PluginEvent, EventCallback[]>;
 	}
 
-	// Ensures only one instance is created
 	public static getInstance(): EventManager {
 		if (!EventManager.instance) {
 			EventManager.instance = new EventManager();
@@ -17,7 +16,13 @@ export default class EventManager {
 		return EventManager.instance;
 	}
 
-	// Method to add an event listener
+	public static destroy(): void {
+		if (EventManager.instance) {
+			EventManager.instance.eventListeners = {} as Record<PluginEvent, EventCallback[]>;
+			delete (EventManager as any).instance;
+		}
+	}
+
 	public on(eventName: PluginEvent, callback: EventCallback): void {
 		if (!this.eventListeners[eventName]) {
 			this.eventListeners[eventName] = [];
@@ -25,7 +30,6 @@ export default class EventManager {
 		this.eventListeners[eventName].push(callback);
 	}
 
-	// Method to remove an event listener
 	public off(
 		eventName: PluginEvent,
 		callbackToRemove: EventCallback
@@ -38,10 +42,9 @@ export default class EventManager {
 		);
 	}
 
-	// Method to trigger all callbacks associated with an event
 	public emit(eventName: PluginEvent, ...data: any[]): void {
 		Logger.trace({ fileName: "event-manager.ts", functionName: "emit", message: "called" });
-		Logger.trace({ fileName: "main.ts", functionName: "emit", message: "emiting event" }, { eventName });
+		Logger.trace({ fileName: "event-manager.ts", functionName: "emit", message: "emitting event" }, { eventName });
 		if (!this.eventListeners[eventName]) {
 			return;
 		}

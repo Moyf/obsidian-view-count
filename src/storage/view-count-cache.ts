@@ -162,11 +162,10 @@ export default class ViewCountCache {
 		}
 
 		if (!shouldSkipNewNote) {
-			if (syncToFrontmatter) {
-				await this.updateViewCountProperty(file);
-			}
-			if (syncViewDateToFrontmatter) {
-				await this.updateViewDateProperty(file);
+			const needsViewCount = syncToFrontmatter;
+			const needsViewDate = syncViewDateToFrontmatter;
+			if (needsViewCount || needsViewDate) {
+				await this.updateFrontmatterProperties(file, needsViewCount, needsViewDate);
 			}
 		}
 
@@ -328,39 +327,44 @@ export default class ViewCountCache {
 		return entriesCopy;
 	}
 
-	async syncViewCountToFrontmatter() {
+	async syncPropertiesToFrontmatter() {
 		Logger.trace({
 			fileName: "view-count-cache.ts",
-			functionName: "syncViewCountToFrontmatter",
+			functionName: "syncPropertiesToFrontmatter",
 			message: "called",
 		});
 
-		const { syncToFrontmatter, syncViewDateToFrontmatter } = this.settings;
+		const { syncToFrontmatter, syncViewDateToFrontmatter, propertyName, viewDatePropertyName, countMethod, viewDateFormat } = this.settings;
 		for (const entry of this.entries) {
 			const file = this.app.vault.getFileByPath(entry.path);
 			if (!file) continue;
 
-			if (syncToFrontmatter) {
-				await this.updateViewCountProperty(file);
-			} else {
-				await this.deleteViewCountProperty(file);
-			}
+			await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
+				if (syncToFrontmatter) {
+					const viewCount = countMethod === "unique-days-opened"
+						? entry.uniqueDaysOpened
+						: entry.totalTimesOpened;
+					frontmatter[propertyName] = viewCount;
+				} else {
+					frontmatter[propertyName] = undefined;
+				}
 
-			if (syncViewDateToFrontmatter) {
-				await this.updateViewDateProperty(file);
-			} else {
-				await this.deleteViewDateProperty(file);
-			}
+				if (syncViewDateToFrontmatter) {
+					frontmatter[viewDatePropertyName] = window.moment().format(viewDateFormat);
+				} else {
+					frontmatter[viewDatePropertyName] = undefined;
+				}
+			});
 		}
 	}
 
-	private async updateViewCountProperty(file: TFile) {
+	private async updateFrontmatterProperties(file: TFile, updateViewCount: boolean, updateViewDate: boolean) {
 		Logger.trace({
 			fileName: "view-count-cache.ts",
-			functionName: "updateViewCountProperty",
+			functionName: "updateFrontmatterProperties",
 			message: "called",
 		});
-		const { propertyName, countMethod } = this.settings;
+		const { propertyName, countMethod, viewDatePropertyName, viewDateFormat } = this.settings;
 
 		const entry = this.entries.find((entry) => entry.path === file.path);
 		if (!entry) {
@@ -368,105 +372,33 @@ export default class ViewCountCache {
 		}
 
 		await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
-			if (countMethod === "unique-days-opened") {
+			if (updateViewCount) {
+				const viewCount = countMethod === "unique-days-opened"
+					? entry.uniqueDaysOpened
+					: entry.totalTimesOpened;
 				Logger.debug(
 					{
 						fileName: "view-count-cache.ts",
-						functionName: "updateViewCountProperty",
-						message: "ipdating view count property in frontmatter",
+						functionName: "updateFrontmatterProperties",
+						message: "updating view count property in frontmatter",
 					},
-					{
-						path: file.path,
-						propertyName,
-						viewCount: entry.uniqueDaysOpened,
-						countMethod: "unique-days-opened",
-					}
+					{ path: file.path, propertyName, viewCount, countMethod }
 				);
-				frontmatter[propertyName] = entry.uniqueDaysOpened;
-			} else {
+				frontmatter[propertyName] = viewCount;
+			}
+
+			if (updateViewDate) {
+				const formattedDate = window.moment().format(viewDateFormat);
 				Logger.debug(
 					{
 						fileName: "view-count-cache.ts",
-						functionName: "updateViewCountProperty",
-						message: "ipdating view count property in frontmatter",
+						functionName: "updateFrontmatterProperties",
+						message: "updating view date property in frontmatter",
 					},
-					{
-						path: file.path,
-						propertyName,
-						viewCount: entry.totalTimesOpened,
-						countMethod: "total-times-opened",
-					}
+					{ path: file.path, viewDatePropertyName, formattedDate }
 				);
-				frontmatter[propertyName] = entry.totalTimesOpened;
+				frontmatter[viewDatePropertyName] = formattedDate;
 			}
-		});
-	}
-
-	private async deleteViewCountProperty(file: TFile) {
-		Logger.trace({
-			fileName: "view-count-cache.ts",
-			functionName: "deleteViewCountProperty",
-			message: "called",
-		});
-		const { propertyName } = this.settings;
-
-		Logger.debug(
-			{
-				fileName: "view-count-cache.ts",
-				functionName: "deleteViewCountProperty",
-				message: "deleting view count property in frontmatter",
-			},
-			{ path: file.path, propertyName }
-		);
-		await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
-			frontmatter[propertyName] = undefined;
-		});
-	}
-
-	private async updateViewDateProperty(file: TFile) {
-		Logger.trace({
-			fileName: "view-count-cache.ts",
-			functionName: "updateViewDateProperty",
-			message: "called",
-		});
-		const { viewDatePropertyName, viewDateFormat } = this.settings;
-		const formattedDate = window.moment().format(viewDateFormat);
-
-		Logger.debug(
-			{
-				fileName: "view-count-cache.ts",
-				functionName: "updateViewDateProperty",
-				message: "updating view date property in frontmatter",
-			},
-			{
-				path: file.path,
-				viewDatePropertyName,
-				formattedDate,
-			}
-		);
-		await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
-			frontmatter[viewDatePropertyName] = formattedDate;
-		});
-	}
-
-	private async deleteViewDateProperty(file: TFile) {
-		Logger.trace({
-			fileName: "view-count-cache.ts",
-			functionName: "deleteViewDateProperty",
-			message: "called",
-		});
-		const { viewDatePropertyName } = this.settings;
-
-		Logger.debug(
-			{
-				fileName: "view-count-cache.ts",
-				functionName: "deleteViewDateProperty",
-				message: "deleting view date property in frontmatter",
-			},
-			{ path: file.path, viewDatePropertyName }
-		);
-		await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
-			frontmatter[viewDatePropertyName] = undefined;
 		});
 	}
 
