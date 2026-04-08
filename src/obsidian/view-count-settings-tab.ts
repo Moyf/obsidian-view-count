@@ -120,6 +120,61 @@ class ViewCountSettingsTab extends PluginSettingTab {
 					})
 			);
 
+		new Setting(containerEl).setName("View date").setHeading();
+
+		new Setting(containerEl)
+			.setName("Sync view date")
+			.setDesc(
+				"Add a view date property to notes and update it with the last viewed date whenever a note is opened."
+			)
+			.addToggle((component) =>
+				component
+					.setValue(this.plugin.settings.syncViewDateToFrontmatter)
+					.onChange(async (value) => {
+						this.plugin.settings.syncViewDateToFrontmatter = value;
+
+						await this.plugin.saveSettings();
+						await viewCountCache.syncViewCountToFrontmatter();
+					})
+			);
+
+		const viewDatePropertyDesc = new DocumentFragment();
+		viewDatePropertyDesc.createDiv({
+			text: "Property name to store the view date in.",
+		});
+		viewDatePropertyDesc.createEl("br");
+		viewDatePropertyDesc.createDiv({
+			text: "Please rename the existing property in all your notes before changing this setting.",
+			cls: "view-count-text--emphasize",
+		});
+
+		new Setting(containerEl)
+			.setName("View date property name")
+			.setDesc(viewDatePropertyDesc)
+			.addText((text) =>
+				text
+					.setValue(this.plugin.settings.viewDatePropertyName)
+					.onChange(async (value) => {
+						this.plugin.settings.viewDatePropertyName = value;
+						await this.plugin.saveSettings();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName("View date format")
+			.setDesc(
+				"Date format using Moment.js tokens. e.g. YYYY-MM-DD, YYYY/MM/DD, YYYY-MM-DD HH:mm:ss"
+			)
+			.addText((text) =>
+				text
+					.setPlaceholder("YYYY-MM-DD")
+					.setValue(this.plugin.settings.viewDateFormat)
+					.onChange(async (value) => {
+						this.plugin.settings.viewDateFormat = value || "YYYY-MM-DD";
+						await this.plugin.saveSettings();
+					})
+			);
+
 		new Setting(containerEl).setName("Plugin compatibility").setHeading();
 		new Setting(containerEl)
 			.setName("Templater delay")

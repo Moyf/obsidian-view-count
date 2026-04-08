@@ -3,6 +3,9 @@ export interface ViewCountPluginSettings {
 	syncToFrontmatter: boolean;
 	skipNewNotes: boolean;
 	propertyName: string;
+	syncViewDateToFrontmatter: boolean;
+	viewDatePropertyName: string;
+	viewDateFormat: string;
 	pluginVersion: string;
 	logLevel: string;
 	excludedPaths: string[];

@@ -127,6 +127,7 @@ export default class ViewCountCache {
 			excludedPaths,
 			templaterDelay,
 			syncToFrontmatter,
+			syncViewDateToFrontmatter,
 			skipNewNotes,
 		} = this.settings;
 		if (!shouldTrackFile(file, excludedPaths)) {
@@ -145,23 +146,27 @@ export default class ViewCountCache {
 
 		await this.incrementViewCount(file.path);
 
-		if (syncToFrontmatter) {
-			//If we're creating a new file and the templater delay is greater than 0, wait before updating the view count property in frontmatter
-			//This is to prevent the view count from overwriting the templater output
-			if (!entry && templaterDelay > 0) {
-				Logger.debug({
-					fileName: "view-count-cache.ts",
-					functionName: "handleFileOpen",
-					message: `templater delay is greater than 0. Waiting ${templaterDelay}ms before incrementing the view count.`,
-				});
-				await new Promise((resolve) =>
-					setTimeout(resolve, templaterDelay)
-				);
-			}
-			if (!entry && skipNewNotes) {
-				//Do nothing
-			} else {
+		const isNewNote = !entry;
+		const shouldWaitForTemplater = isNewNote && templaterDelay > 0;
+		const shouldSkipNewNote = isNewNote && skipNewNotes;
+
+		if (shouldWaitForTemplater && (syncToFrontmatter || syncViewDateToFrontmatter)) {
+			Logger.debug({
+				fileName: "view-count-cache.ts",
+				functionName: "handleFileOpen",
+				message: `templater delay is greater than 0. Waiting ${templaterDelay}ms before updating frontmatter.`,
+			});
+			await new Promise((resolve) =>
+				setTimeout(resolve, templaterDelay)
+			);
+		}
+
+		if (!shouldSkipNewNote) {
+			if (syncToFrontmatter) {
 				await this.updateViewCountProperty(file);
+			}
+			if (syncViewDateToFrontmatter) {
+				await this.updateViewDateProperty(file);
 			}
 		}
 
@@ -330,7 +335,7 @@ export default class ViewCountCache {
 			message: "called",
 		});
 
-		const { syncToFrontmatter } = this.settings;
+		const { syncToFrontmatter, syncViewDateToFrontmatter } = this.settings;
 		for (const entry of this.entries) {
 			const file = this.app.vault.getFileByPath(entry.path);
 			if (!file) continue;
@@ -339,6 +344,12 @@ export default class ViewCountCache {
 				await this.updateViewCountProperty(file);
 			} else {
 				await this.deleteViewCountProperty(file);
+			}
+
+			if (syncViewDateToFrontmatter) {
+				await this.updateViewDateProperty(file);
+			} else {
+				await this.deleteViewDateProperty(file);
 			}
 		}
 	}
@@ -409,6 +420,53 @@ export default class ViewCountCache {
 		);
 		await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
 			frontmatter[propertyName] = undefined;
+		});
+	}
+
+	private async updateViewDateProperty(file: TFile) {
+		Logger.trace({
+			fileName: "view-count-cache.ts",
+			functionName: "updateViewDateProperty",
+			message: "called",
+		});
+		const { viewDatePropertyName, viewDateFormat } = this.settings;
+		const formattedDate = window.moment().format(viewDateFormat);
+
+		Logger.debug(
+			{
+				fileName: "view-count-cache.ts",
+				functionName: "updateViewDateProperty",
+				message: "updating view date property in frontmatter",
+			},
+			{
+				path: file.path,
+				viewDatePropertyName,
+				formattedDate,
+			}
+		);
+		await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
+			frontmatter[viewDatePropertyName] = formattedDate;
+		});
+	}
+
+	private async deleteViewDateProperty(file: TFile) {
+		Logger.trace({
+			fileName: "view-count-cache.ts",
+			functionName: "deleteViewDateProperty",
+			message: "called",
+		});
+		const { viewDatePropertyName } = this.settings;
+
+		Logger.debug(
+			{
+				fileName: "view-count-cache.ts",
+				functionName: "deleteViewDateProperty",
+				message: "deleting view date property in frontmatter",
+			},
+			{ path: file.path, viewDatePropertyName }
+		);
+		await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
+			frontmatter[viewDatePropertyName] = undefined;
 		});
 	}
 

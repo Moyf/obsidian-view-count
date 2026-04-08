@@ -1,5 +1,4 @@
 {
-  "extends": "@tsconfig/svelte/tsconfig.json",
   "compilerOptions": {
     "types": ["svelte", "node"],
     "baseUrl": ".",
@@ -10,9 +9,12 @@
     "noImplicitAny": true,
     "moduleResolution": "node",
     "importHelpers": true,
-    // "isolatedModules": true,
-	"strictNullChecks": true,
-	"allowSyntheticDefaultImports": true,
+    "strictNullChecks": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "sourceMap": true,
+    "strict": true,
     "lib": [
       "DOM",
       "ES5",

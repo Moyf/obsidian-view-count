@@ -137,7 +137,7 @@ export default class ViewCountPlugin extends Plugin {
 					console.log("Migrating settings from 2.4.1 to 2.5.0");
 					const typedData =
 						data as unknown as ViewCountPluginSettings_2_4_1;
-					const newData: ViewCountPluginSettings = {
+					const newData: Partial<ViewCountPluginSettings> = {
 						...typedData,
 						skipNewNotes: false,
 						countMethod: typedData.viewCountType,
