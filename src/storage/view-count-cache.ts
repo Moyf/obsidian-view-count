@@ -25,6 +25,7 @@ export default class ViewCountCache {
 	private app: App;
 	private entries: ViewCountEntry[] = [];
 	private settings: ViewCountPluginSettings;
+	private markedNewFiles: Set<string> = new Set();
 
 	private debounceSave = _.debounce(() => this.save(), 200);
 	debounceRefresh = _.debounce(() => this.refresh(), 200);
@@ -32,6 +33,10 @@ export default class ViewCountCache {
 	constructor(app: App, settings: ViewCountPluginSettings) {
 		this.app = app;
 		this.settings = settings;
+	}
+
+	markNewFile(path: string) {
+		this.markedNewFiles.add(path);
 	}
 
 	async load() {
@@ -133,22 +138,32 @@ export default class ViewCountCache {
 		if (!shouldTrackFile(file, excludedPaths)) {
 			Logger.debug({
 				fileName: "view-count-cache.ts",
-				functionName: "handeFileOpen",
+				functionName: "handleFileOpen",
 				message: `file "${file.path}" is set to be excluded. returning...`,
 			});
 			return;
 		}
 
 		const entry = this.entries.find((entry) => entry.path === file.path);
-		if (!entry) {
+		const createdNow = !entry;
+		if (createdNow) {
 			await this.createEntry(file);
 		}
 
-		await this.incrementViewCount(file.path);
+		// `create` and `file-open` event order is not guaranteed.
+		// Treat file as new if either: marked by create event, or created in this handler.
+		const isNewFileOpen = this.markedNewFiles.has(file.path) || createdNow;
+		const shouldWaitForTemplater = isNewFileOpen && templaterDelay > 0;
+		const shouldSkipNewNote = isNewFileOpen && skipNewNotes;
 
-		const isNewNote = !entry;
-		const shouldWaitForTemplater = isNewNote && templaterDelay > 0;
-		const shouldSkipNewNote = isNewNote && skipNewNotes;
+		if (shouldSkipNewNote) {
+			this.markedNewFiles.delete(file.path);
+			this.debounceSave();
+			this.debounceRefresh();
+			return;
+		}
+
+		await this.incrementViewCount(file.path);
 
 		if (shouldWaitForTemplater && (syncToFrontmatter || syncViewDateToFrontmatter)) {
 			Logger.debug({
@@ -167,6 +182,10 @@ export default class ViewCountCache {
 			if (needsViewCount || needsViewDate) {
 				await this.updateFrontmatterProperties(file, needsViewCount, needsViewDate);
 			}
+		}
+
+		if (isNewFileOpen) {
+			this.markedNewFiles.delete(file.path);
 		}
 
 		await this.addOpenLogEntry(file.path);
@@ -283,6 +302,11 @@ export default class ViewCountCache {
 			return entry;
 		});
 
+		if (this.markedNewFiles.has(oldPath)) {
+			this.markedNewFiles.delete(oldPath);
+			this.markedNewFiles.add(newPath);
+		}
+
 		this.debounceSave();
 		this.debounceRefresh();
 	}
@@ -302,6 +326,7 @@ export default class ViewCountCache {
 			{ path: file.path }
 		);
 		this.entries = this.entries.filter((entry) => entry.path !== file.path);
+		this.markedNewFiles.delete(file.path);
 
 		this.debounceSave();
 		this.debounceRefresh();

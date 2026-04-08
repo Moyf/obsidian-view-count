@@ -9,7 +9,7 @@ export const DEFAULT_SETTINGS: ViewCountPluginSettings = {
 	syncToFrontmatter: false,
 	propertyName: "view-count",
 	syncViewDateToFrontmatter: false,
-	viewDatePropertyName: "view-date",
+	viewDatePropertyName: "viewed_at",
 	viewDateFormat: "YYYY-MM-DD",
 	pluginVersion: "",
 	logLevel: LOG_LEVEL_OFF,

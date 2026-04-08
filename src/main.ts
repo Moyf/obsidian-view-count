@@ -172,6 +172,14 @@ export default class ViewCountPlugin extends Plugin {
 		}
 
 		this.registerEvent(
+			this.app.vault.on("create", async (file) => {
+				if (file instanceof TFile) {
+					cache.markNewFile(file.path);
+				}
+			})
+		);
+
+		this.registerEvent(
 			this.app.workspace.on("file-open", async (file) => {
 				if (file === null) return;
 				await this.debounceHandleFileOpen(file);
@@ -204,7 +212,7 @@ export default class ViewCountPlugin extends Plugin {
 				} else {
 					const file = (leaf.view as any).file as TFile | null;
 					if (file != null) {
-						await this.debounceHandleFileOpen(file);
+						this.updateStatusBarForFile(file);
 					}
 				}
 			})
@@ -249,11 +257,18 @@ export default class ViewCountPlugin extends Plugin {
 
 		await this.viewCountCache.handleFileOpen(file);
 
+		this.updateStatusBarForFile(file);
+	}
+
+	private updateStatusBarForFile(file: TFile) {
+		if (this.viewCountCache === null) {
+			return;
+		}
+
 		if (!this.viewCountStatusBarItem) {
 			this.viewCountStatusBarItem = this.addStatusBarItem();
 		}
 
-		//Update the view count in the status bar
 		const viewCount = this.viewCountCache.getViewCount(file);
 		const viewName = viewCount === 1 ? "view" : "views";
 		this.viewCountStatusBarItem.setText(`${viewCount} ${viewName}`);
