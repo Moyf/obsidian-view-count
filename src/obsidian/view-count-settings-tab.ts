@@ -1,4 +1,10 @@
-import { App, PluginSettingTab, Setting, requireApiVersion } from "obsidian";
+import {
+	App,
+	PluginSettingTab,
+	Setting,
+	requireApiVersion,
+	getLanguage,
+} from "obsidian";
 import ViewCountPlugin from "src/main";
 import * as ObsidianModule from "obsidian";
 
@@ -16,6 +22,51 @@ import { stringToLogLevel } from "src/logger";
 class ViewCountSettingsTab extends PluginSettingTab {
 	plugin: ViewCountPlugin;
 	icon = "eye";
+	private readonly locale = getLanguage();
+
+	private readonly zhCN: Record<string, string> = {
+		"group.counting": "计数规则",
+		"group.newNote": "新笔记行为",
+		"group.frontmatter": "Frontmatter 同步",
+		"group.debug": "调试",
+		"setting.countMethod.name": "计数方式",
+		"setting.countMethod.desc": "用于计算浏览次数的方法。",
+		"option.uniqueDays": "按打开天数去重",
+		"option.totalTimes": "总打开次数",
+		"setting.excludedPaths.name": "排除路径",
+		"setting.excludedPaths.desc": "要排除统计的文件夹路径，逗号分隔，例如 folder1,folder2",
+		"setting.skipNewNotes.name": "跳过新笔记",
+		"setting.skipNewNotes.desc": "启用后，新建笔记首次打开会跳过计数和 frontmatter 写入。",
+		"setting.templaterDelay.name": "Templater 延迟",
+		"setting.templaterDelay.desc": "新笔记首次打开时写入 frontmatter 前的等待时间（适用于 Templater）。",
+		"setting.syncViewCount.name": "同步浏览次数",
+		"setting.syncViewCount.desc": "将缓存中的浏览次数写入现有笔记 frontmatter。",
+		"setting.viewCountProp.name": "浏览次数属性名",
+		"setting.viewCountProp.desc1": "用于保存浏览次数的 frontmatter 属性名。",
+		"setting.viewCountProp.desc2": "修改前请先在 All Properties 里重命名已有属性。",
+		"setting.syncViewDate.name": "同步查看日期",
+		"setting.syncViewDate.desc": "将最后查看日期写入现有笔记 frontmatter。",
+		"setting.viewDateProp.name": "查看日期属性名",
+		"setting.viewDateProp.desc1": "用于保存查看日期的 frontmatter 属性名。",
+		"setting.viewDateProp.desc2": "修改前请先在 All Properties 里重命名已有属性。",
+		"setting.viewDateFormat.name": "查看日期格式",
+		"setting.viewDateFormat.desc": "Moment.js 格式，例如：YYYY-MM-DD、YYYY/MM/DD HH:mm",
+		"setting.logLevel.name": "日志级别",
+		"setting.logLevel.desc": "设置日志级别；选择 trace 可查看全部日志。",
+		"log.off": "关闭",
+		"log.error": "错误",
+		"log.warn": "警告",
+		"log.info": "信息",
+		"log.debug": "调试",
+		"log.trace": "追踪",
+	};
+
+	private t(key: string, en: string): string {
+		if (this.locale === "zh-CN" || this.locale.startsWith("zh")) {
+			return this.zhCN[key] ?? en;
+		}
+		return en;
+	}
 
 	constructor(app: App, plugin: ViewCountPlugin) {
 		super(app, plugin);
@@ -64,15 +115,18 @@ class ViewCountSettingsTab extends PluginSettingTab {
 
 		containerEl.empty();
 
-		const countingGroup = this.createSettingsGroup(containerEl, "Counting rules");
+		const countingGroup = this.createSettingsGroup(
+			containerEl,
+			this.t("group.counting", "Counting rules")
+		);
 		countingGroup.addSetting((setting) => {
 			setting
-				.setName("Count method")
-				.setDesc("Method used to calculate view counts.")
+				.setName(this.t("setting.countMethod.name", "Count method"))
+				.setDesc(this.t("setting.countMethod.desc", "Method used to calculate view counts."))
 				.addDropdown((component) =>
 					component
-						.addOption("unique-days-opened", "Unique days opened")
-						.addOption("total-times-opened", "Total times opened")
+						.addOption("unique-days-opened", this.t("option.uniqueDays", "Unique days opened"))
+						.addOption("total-times-opened", this.t("option.totalTimes", "Total times opened"))
 						.setValue(this.plugin.settings.countMethod)
 						.onChange(async (value) => {
 							this.plugin.settings.countMethod = value as
@@ -90,9 +144,12 @@ class ViewCountSettingsTab extends PluginSettingTab {
 
 		countingGroup.addSetting((setting) => {
 			setting
-				.setName("Excluded paths")
+				.setName(this.t("setting.excludedPaths.name", "Excluded paths"))
 				.setDesc(
-					"Folder paths to exclude from view count tracking. Separate by commas, e.g. folder1,folder2"
+					this.t(
+						"setting.excludedPaths.desc",
+						"Folder paths to exclude from view count tracking. Separate by commas, e.g. folder1,folder2"
+					)
 				)
 				.addText((component) =>
 					component
@@ -107,12 +164,18 @@ class ViewCountSettingsTab extends PluginSettingTab {
 				);
 		});
 
-		const newNoteGroup = this.createSettingsGroup(containerEl, "New note behavior");
+		const newNoteGroup = this.createSettingsGroup(
+			containerEl,
+			this.t("group.newNote", "New note behavior")
+		);
 		newNoteGroup.addSetting((setting) => {
 			setting
-				.setName("Skip new notes")
+				.setName(this.t("setting.skipNewNotes.name", "Skip new notes"))
 				.setDesc(
-					"When enabled, new note first open will skip count increment and frontmatter writes."
+					this.t(
+						"setting.skipNewNotes.desc",
+						"When enabled, new note first open will skip count increment and frontmatter writes."
+					)
 				)
 				.addToggle((component) =>
 					component
@@ -127,9 +190,12 @@ class ViewCountSettingsTab extends PluginSettingTab {
 
 		newNoteGroup.addSetting((setting) => {
 			setting
-				.setName("Templater delay")
+				.setName(this.t("setting.templaterDelay.name", "Templater delay"))
 				.setDesc(
-					"Delay before frontmatter write on new-note first open. Useful when Templater is enabled."
+					this.t(
+						"setting.templaterDelay.desc",
+						"Delay before frontmatter write on new-note first open. Useful when Templater is enabled."
+					)
 				)
 				.addDropdown((cb) => {
 					cb.addOptions({
@@ -149,12 +215,18 @@ class ViewCountSettingsTab extends PluginSettingTab {
 				});
 		});
 
-		const frontmatterGroup = this.createSettingsGroup(containerEl, "Frontmatter sync");
+		const frontmatterGroup = this.createSettingsGroup(
+			containerEl,
+			this.t("group.frontmatter", "Frontmatter sync")
+		);
 		frontmatterGroup.addSetting((setting) => {
 			setting
-				.setName("Sync view count")
+				.setName(this.t("setting.syncViewCount.name", "Sync view count"))
 				.setDesc(
-					"Write view count from cache to frontmatter for existing notes."
+					this.t(
+						"setting.syncViewCount.desc",
+						"Write view count from cache to frontmatter for existing notes."
+					)
 				)
 				.addToggle((component) =>
 					component
@@ -170,17 +242,20 @@ class ViewCountSettingsTab extends PluginSettingTab {
 
 		const viewCountDesc = new DocumentFragment();
 		viewCountDesc.createDiv({
-			text: "Property name for view count.",
+			text: this.t("setting.viewCountProp.desc1", "Property name for view count."),
 		});
 		viewCountDesc.createEl("br");
 		viewCountDesc.createDiv({
-			text: "Rename existing property first in All Properties view before changing this value.",
+			text: this.t(
+				"setting.viewCountProp.desc2",
+				"Rename existing property first in All Properties view before changing this value."
+			),
 			cls: "view-count-text--emphasize",
 		});
 
 		frontmatterGroup.addSetting((setting) => {
 			setting
-				.setName("View count property name")
+				.setName(this.t("setting.viewCountProp.name", "View count property name"))
 				.setDesc(viewCountDesc)
 				.addText((text) => {
 					text
@@ -195,9 +270,12 @@ class ViewCountSettingsTab extends PluginSettingTab {
 
 		frontmatterGroup.addSetting((setting) => {
 			setting
-				.setName("Sync view date")
+				.setName(this.t("setting.syncViewDate.name", "Sync view date"))
 				.setDesc(
-					"Write last viewed date to frontmatter for existing notes."
+					this.t(
+						"setting.syncViewDate.desc",
+						"Write last viewed date to frontmatter for existing notes."
+					)
 				)
 				.addToggle((component) =>
 					component
@@ -213,17 +291,20 @@ class ViewCountSettingsTab extends PluginSettingTab {
 
 		const viewDatePropertyDesc = new DocumentFragment();
 		viewDatePropertyDesc.createDiv({
-			text: "Property name for viewed date.",
+			text: this.t("setting.viewDateProp.desc1", "Property name for viewed date."),
 		});
 		viewDatePropertyDesc.createEl("br");
 		viewDatePropertyDesc.createDiv({
-			text: "Rename existing property first in All Properties view before changing this value.",
+			text: this.t(
+				"setting.viewDateProp.desc2",
+				"Rename existing property first in All Properties view before changing this value."
+			),
 			cls: "view-count-text--emphasize",
 		});
 
 		frontmatterGroup.addSetting((setting) => {
 			setting
-				.setName("Viewed date property name")
+				.setName(this.t("setting.viewDateProp.name", "Viewed date property name"))
 				.setDesc(viewDatePropertyDesc)
 				.addText((text) => {
 					text
@@ -238,8 +319,8 @@ class ViewCountSettingsTab extends PluginSettingTab {
 
 		frontmatterGroup.addSetting((setting) => {
 			setting
-				.setName("Viewed date format")
-				.setDesc("Moment.js format. Examples: YYYY-MM-DD, YYYY/MM/DD HH:mm")
+				.setName(this.t("setting.viewDateFormat.name", "Viewed date format"))
+				.setDesc(this.t("setting.viewDateFormat.desc", "Moment.js format. Examples: YYYY-MM-DD, YYYY/MM/DD HH:mm"))
 				.addText((text) => {
 					text
 						.setPlaceholder("YYYY-MM-DD")
@@ -252,19 +333,22 @@ class ViewCountSettingsTab extends PluginSettingTab {
 				});
 		});
 
-		const debugGroup = this.createSettingsGroup(containerEl, "Debugging");
+		const debugGroup = this.createSettingsGroup(
+			containerEl,
+			this.t("group.debug", "Debugging")
+		);
 		debugGroup.addSetting((setting) => {
 			setting
-				.setName("Log level")
-				.setDesc("Set the log level. Use trace to see all log messages.")
+				.setName(this.t("setting.logLevel.name", "Log level"))
+				.setDesc(this.t("setting.logLevel.desc", "Set the log level. Use trace to see all log messages."))
 				.addDropdown((cb) => {
 					cb.addOptions({
-						[LOG_LEVEL_OFF]: "Off",
-						[LOG_LEVEL_ERROR]: "Error",
-						[LOG_LEVEL_WARN]: "Warn",
-						[LOG_LEVEL_INFO]: "Info",
-						[LOG_LEVEL_DEBUG]: "Debug",
-						[LOG_LEVEL_TRACE]: "Trace",
+						[LOG_LEVEL_OFF]: this.t("log.off", "Off"),
+						[LOG_LEVEL_ERROR]: this.t("log.error", "Error"),
+						[LOG_LEVEL_WARN]: this.t("log.warn", "Warn"),
+						[LOG_LEVEL_INFO]: this.t("log.info", "Info"),
+						[LOG_LEVEL_DEBUG]: this.t("log.debug", "Debug"),
+						[LOG_LEVEL_TRACE]: this.t("log.trace", "Trace"),
 					});
 					cb.setValue(this.plugin.settings.logLevel).onChange(
 						async (value) => {
