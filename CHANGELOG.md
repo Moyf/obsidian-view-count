@@ -4,43 +4,36 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
-## [2.5.0]
+## 2.5.0
 
-### Added
+### English
 
-- Added view-date frontmatter sync support with configurable property name and date format.
-- Added new settings for:
-  - Sync view date
-  - Viewed date property name (default: `viewed_at`)
-  - Viewed date format (`YYYY-MM-DD` by default)
-- Added `build:local` and `copy-to-local` scripts for local Obsidian vault testing.
-- Added zh-CN localization for settings labels and descriptions.
-- Added `vault.create` based new-file marking to make new-note handling deterministic.
-- Added selective sync methods:
-  - `syncViewCountToFrontmatterOnly()`
-  - `syncViewDateToFrontmatterOnly()`
+#### ✨ Added
+- Added last-view-date frontmatter sync with configurable property name and date format
+- Added zh-CN localization for the settings UI
 
-### Changed
+#### 🔄 Changed
+- Refactored settings UI into grouped sections with `SettingGroup` and backward-compatible fallback
+- Improved excluded-path input: switched to textarea, supports comma/newline separators
 
-- Refactored settings UI into grouped sections and adopted `SettingGroup` with runtime compatibility fallback for older Obsidian API versions.
-- Updated release workflow to newer GitHub Actions versions and automatic release-notes extraction from `CHANGELOG.md`.
-- Switched active-leaf behavior to only refresh status bar; counting now happens on file-open path.
-- Updated dependencies and toolchain:
-  - `obsidian` to `^1.12.3`
-  - TypeScript to `^5`
-  - `@typescript-eslint/*` to `^8.58.1`
-  - `esbuild` to `^0.28.0`
-  - `esbuild-svelte` to `^0.9.4`
-  - `svelte-preprocess` to `^6.0.3`
-  - `tslib` to `^2.8.1`
-  - plus related type packages updates
-- Improved excluded-paths input UX:
-  - changed to textarea
-  - supports separators by comma and newline
+#### 🐛 Fixed
+- Fixed `Skip new notes` behavior so first open of new notes is properly skipped
+- Fixed issue where new notes could unexpectedly start with `view_count: 2`
+- Fixed issue where changing count method refreshed `viewed_at` on all notes
+- Fixed EventManager singleton cleanup on plugin unload
 
-### Fixed
+### 中文
 
-- Fixed new-note counting semantics so `Skip new notes` truly skips first-open counting and frontmatter writes.
-- Fixed issue where newly created notes could show `view_count: 2` unexpectedly.
-- Fixed issue where changing count method refreshed `viewed_at` for all notes; count-method changes now sync only view-count fields.
-- Fixed EventManager singleton lifecycle leak by resetting singleton state on plugin unload.
+#### ✨ 新增
+- 新增“最后查看日期”同步能力，可自定义属性名与日期格式
+- 设置页新增 zh-CN 文案支持
+
+#### 🔄 变更
+- 设置页重构为分组结构，采用 `SettingGroup`，并提供低版本兼容 fallback
+- 排除路径输入改为 textarea，并支持逗号/换行分隔
+
+#### 🐛 修复
+- 修复 `Skip new notes`，新建笔记首次打开可正确跳过
+- 修复新建笔记可能直接出现 `view_count: 2` 的问题
+- 修复修改计数方式时会刷新全部笔记 `viewed_at` 的问题
+- 修复 EventManager 单例在插件卸载时的清理问题
