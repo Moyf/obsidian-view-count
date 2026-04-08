@@ -34,7 +34,7 @@ class ViewCountSettingsTab extends PluginSettingTab {
 		"option.uniqueDays": "按打开天数去重",
 		"option.totalTimes": "总打开次数",
 		"setting.excludedPaths.name": "排除路径",
-		"setting.excludedPaths.desc": "要排除统计的文件夹路径，逗号分隔，例如 folder1,folder2",
+		"setting.excludedPaths.desc": "要排除统计的文件夹路径。支持英文逗号或换行分隔。",
 		"setting.skipNewNotes.name": "跳过新笔记",
 		"setting.skipNewNotes.desc": "启用后，新建笔记首次打开会跳过计数和 frontmatter 写入。",
 		"setting.templaterDelay.name": "Templater 延迟",
@@ -134,7 +134,7 @@ class ViewCountSettingsTab extends PluginSettingTab {
 								| "total-times-opened";
 							await this.plugin.saveSettings();
 							if (this.plugin.settings.syncToFrontmatter) {
-								await viewCountCache.syncPropertiesToFrontmatter();
+								await viewCountCache.syncViewCountToFrontmatterOnly();
 							}
 							await viewCountCache.debounceRefresh();
 							this.display();
@@ -148,15 +148,16 @@ class ViewCountSettingsTab extends PluginSettingTab {
 				.setDesc(
 					this.t(
 						"setting.excludedPaths.desc",
-						"Folder paths to exclude from view count tracking. Separate by commas, e.g. folder1,folder2"
+						"Folder paths to exclude from view count tracking. Use commas or new lines as separators."
 					)
 				)
-				.addText((component) =>
+				.addTextArea((component) =>
 					component
-						.setValue(this.plugin.settings.excludedPaths.join(","))
+						.setValue(this.plugin.settings.excludedPaths.join("\n"))
+						.setPlaceholder("folder1\nfolder2,folder3")
 						.onChange(async (value) => {
 							this.plugin.settings.excludedPaths = value
-								.split(",")
+								.split(/[\r\n,]+/)
 								.map((v) => v.trim())
 								.filter((v) => v.length > 0);
 							await this.plugin.saveSettings();
@@ -234,7 +235,7 @@ class ViewCountSettingsTab extends PluginSettingTab {
 						.onChange(async (value) => {
 							this.plugin.settings.syncToFrontmatter = value;
 							await this.plugin.saveSettings();
-							await viewCountCache.syncPropertiesToFrontmatter();
+							await viewCountCache.syncViewCountToFrontmatterOnly();
 							this.display();
 						})
 				);
@@ -283,7 +284,7 @@ class ViewCountSettingsTab extends PluginSettingTab {
 						.onChange(async (value) => {
 							this.plugin.settings.syncViewDateToFrontmatter = value;
 							await this.plugin.saveSettings();
-							await viewCountCache.syncPropertiesToFrontmatter();
+							await viewCountCache.syncViewDateToFrontmatterOnly();
 							this.display();
 						})
 				);

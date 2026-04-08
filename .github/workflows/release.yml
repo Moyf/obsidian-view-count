@@ -9,12 +9,12 @@ jobs:
     build:
         runs-on: ubuntu-latest
         steps:
-            - uses: actions/checkout@v2
+            - uses: actions/checkout@v4
 
             - name: Use Node.js
-              uses: actions/setup-node@v1
+              uses: actions/setup-node@v4
               with:
-                  node-version: "16.x"
+                  node-version: "18.x"
 
             - uses: oven-sh/setup-bun@v1
               with:
@@ -33,6 +33,30 @@ jobs:
               id: build
               run: bun run build
 
+            - name: Extract changelog for current version
+              id: changelog
+              run: |
+                  VERSION="${GITHUB_REF_NAME}"
+                  # Strip leading 'v' if present
+                  VERSION="${VERSION#v}"
+                  echo "Extracting changelog for version: $VERSION"
+
+                  # Extract content between current version header and next version header (or EOF)
+                  CHANGELOG=$(awk -v ver="$VERSION" '
+                      /^## \[/ {
+                          if (found) exit
+                          if (index($0, "[" ver "]")) found=1
+                          next
+                      }
+                      found { print }
+                  ' CHANGELOG.md)
+
+                  # Write to file to preserve multiline content
+                  echo "$CHANGELOG" > /tmp/release_notes.md
+
+                  echo "Release notes:"
+                  cat /tmp/release_notes.md
+
             # Create the release on GitHub
             - name: Release
               uses: softprops/action-gh-release@v1
@@ -40,6 +64,7 @@ jobs:
               with:
                   name: ${{ github.ref_name }}
                   tag_name: ${{ github.ref }}
+                  body_path: /tmp/release_notes.md
                   files: |
                       dist/main.js
                       dist/manifest.json

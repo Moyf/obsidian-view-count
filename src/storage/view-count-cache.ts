@@ -383,6 +383,60 @@ export default class ViewCountCache {
 		}
 	}
 
+	async syncViewCountToFrontmatterOnly() {
+		Logger.trace({
+			fileName: "view-count-cache.ts",
+			functionName: "syncViewCountToFrontmatterOnly",
+			message: "called",
+		});
+
+		const { syncToFrontmatter, propertyName, countMethod } = this.settings;
+		for (const entry of this.entries) {
+			const file = this.app.vault.getFileByPath(entry.path);
+			if (!file) continue;
+
+			await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
+				if (syncToFrontmatter) {
+					const viewCount =
+						countMethod === "unique-days-opened"
+							? entry.uniqueDaysOpened
+							: entry.totalTimesOpened;
+					frontmatter[propertyName] = viewCount;
+				} else {
+					frontmatter[propertyName] = undefined;
+				}
+			});
+		}
+	}
+
+	async syncViewDateToFrontmatterOnly() {
+		Logger.trace({
+			fileName: "view-count-cache.ts",
+			functionName: "syncViewDateToFrontmatterOnly",
+			message: "called",
+		});
+
+		const {
+			syncViewDateToFrontmatter,
+			viewDatePropertyName,
+			viewDateFormat,
+		} = this.settings;
+		for (const entry of this.entries) {
+			const file = this.app.vault.getFileByPath(entry.path);
+			if (!file) continue;
+
+			await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
+				if (syncViewDateToFrontmatter) {
+					frontmatter[viewDatePropertyName] = window
+						.moment()
+						.format(viewDateFormat);
+				} else {
+					frontmatter[viewDatePropertyName] = undefined;
+				}
+			});
+		}
+	}
+
 	private async updateFrontmatterProperties(file: TFile, updateViewCount: boolean, updateViewDate: boolean) {
 		Logger.trace({
 			fileName: "view-count-cache.ts",
