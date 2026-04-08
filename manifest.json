@@ -4,8 +4,8 @@
 	"version": "3.0.0",
 	"minAppVersion": "1.4.0",
 	"description": "Track view count for each vault file.",
-	"author": "DecafDev",
-	"authorUrl": "https://github.com/decaf-dev",
+	"author": "DecafDev & Moy",
+	"authorUrl": "https://github.com/Moyf/obsidian-view-count",
 	"fundingUrl": "https://ko-fi.com/decaf_dev",
 	"isDesktopOnly": false
 }
