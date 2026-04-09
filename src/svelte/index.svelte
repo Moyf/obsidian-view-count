@@ -483,7 +483,6 @@
 		const { nativeEvent } = e.detail;
 
 		const menu = new Menu();
-		menu.setUseNativeMenu(true);
 		menu.addItem((item) => {
 			item.setTitle(t("method.uniqueDays"));
 			item.setChecked(panelCountMethod === "unique-days-opened");
@@ -509,7 +508,6 @@
 		const { nativeEvent } = e.detail;
 
 		const menu = new Menu();
-		menu.setUseNativeMenu(true);
 
 		menu.addItem((item) => {
 			item.setTitle("10");
@@ -548,7 +546,6 @@
 		const { nativeEvent } = e.detail;
 
 		const menu = new Menu();
-		menu.setUseNativeMenu(true);
 		menu.addItem((item) => {
 			item.setTitle(t("period.3days"));
 			item.setChecked(timePeriod === TimePeriod.DAYS_3);
