@@ -6,15 +6,12 @@ export interface ViewCountPluginSettings_2_4_1 {
 	logLevel: string;
 	excludedPaths: string[];
 	templaterDelay: number;
-	currentView: TView;
+	currentView: TView_2_4_1;
 	timePeriod: TimePeriod;
 	itemCount: ItemCount;
 }
 
-enum TView {
-	VIEWS = "views",
-	TRENDS = "trends",
-}
+type TView_2_4_1 = "views" | "trends";
 
 type TViewCount = "unique-days-opened" | "total-times-opened";
 

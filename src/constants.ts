@@ -5,6 +5,10 @@ export const VIEW_COUNT_ITEM_VIEW = "view-count";
 
 export const DEFAULT_SETTINGS: ViewCountPluginSettings = {
 	countMethod: "unique-days-opened",
+	displayNameProperty: "title",
+	defaultOpenMode: "current",
+	recentFallbackToModifiedTime: false,
+	recentModifiedTimePropertyName: "",
 	skipNewNotes: false,
 	syncToFrontmatter: false,
 	propertyName: "view-count",
@@ -15,7 +19,7 @@ export const DEFAULT_SETTINGS: ViewCountPluginSettings = {
 	logLevel: LOG_LEVEL_OFF,
 	excludedPaths: [],
 	templaterDelay: 0,
-	currentView: TView.VIEWS,
+	currentView: TView.RECENT,
 	timePeriod: TimePeriod.DAYS_3,
 	itemCount: 20,
 };

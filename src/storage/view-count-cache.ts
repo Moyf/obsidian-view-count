@@ -19,7 +19,11 @@ import {
 	getStartOfTodayMillis,
 	getStartOfWeekMillis,
 } from "src/utils/time-utils";
-import { TimePeriod, ViewCountPluginSettings } from "src/types";
+import {
+	CountMethod,
+	TimePeriod,
+	ViewCountPluginSettings,
+} from "src/types";
 
 export default class ViewCountCache {
 	private app: App;
@@ -210,7 +214,13 @@ export default class ViewCountCache {
 	};
 
 	getViewCountForEntry(entry: ViewCountEntry) {
-		const { countMethod } = this.settings;
+		return this.getViewCountForEntryByMethod(
+			entry,
+			this.settings.countMethod
+		);
+	}
+
+	getViewCountForEntryByMethod(entry: ViewCountEntry, countMethod: CountMethod) {
 		if (countMethod === "unique-days-opened") {
 			return entry.uniqueDaysOpened;
 		} else {
@@ -232,7 +242,11 @@ export default class ViewCountCache {
 		return this.getNumTimesOpenedForEntry(entry, timePeriod);
 	}
 
-	getNumTimesOpenedForEntry(entry: ViewCountEntry, timePeriod: TimePeriod) {
+	getNumTimesOpenedForEntry(
+		entry: ViewCountEntry,
+		timePeriod: TimePeriod,
+		countMethod: CountMethod = this.settings.countMethod
+	) {
 		const { openLogs } = entry;
 
 		let timeMillis = 0;
@@ -266,8 +280,18 @@ export default class ViewCountCache {
 				throw new Error(`TimePeriod ${timePeriod} is not supported`);
 		}
 
-		return openLogs.filter((log) => log.timestampMillis >= timeMillis)
-			.length;
+		const filteredLogs = openLogs.filter(
+			(log) => log.timestampMillis >= timeMillis
+		);
+
+		if (countMethod === "total-times-opened") {
+			return filteredLogs.length;
+		}
+
+		const uniqueDays = new Set(
+			filteredLogs.map((log) => new Date(log.timestampMillis).toDateString())
+		);
+		return uniqueDays.size;
 	}
 
 	getLastOpenTime(file: TFile) {

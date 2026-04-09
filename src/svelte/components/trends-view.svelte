@@ -1,9 +1,10 @@
 <script lang="ts">
-	import { TFile } from "obsidian";
+	import type { TFile } from "obsidian";
 	import { createEventDispatcher } from "svelte";
-	import { TrendingRenderItem } from "../types";
+	import type { TrendingRenderItem } from "../types";
 
 	export let renderItems: TrendingRenderItem[];
+	export let emptyText: string;
 	const dispatch = createEventDispatcher();
 
 	function handleItemClick(file: TFile) {
@@ -12,9 +13,9 @@
 </script>
 
 {#if renderItems.length == 0}
-	<div class="pane-empty">No notes with view count found.</div>
+	<div class="pane-empty">{emptyText}</div>
 {:else}
-	{#each renderItems as { file, timesOpened }}
+	{#each renderItems as { file, displayName, timesOpened }}
 		<div class="tree-item">
 			<div
 				role="button"
@@ -28,9 +29,7 @@
 				}}
 			>
 				<div class="tree-item-inner">
-					<div class="tree-item-inner-text">
-						{file.extension == "md" ? file.basename : file.name}
-					</div>
+					<div class="tree-item-inner-text">{displayName}</div>
 				</div>
 				<div class="tree-item-flair-outer">
 					<div class="tree-item-flair">

@@ -1,9 +1,9 @@
 <script lang="ts">
 	import type { TFile } from "obsidian";
-	import type { MostViewedRenderItem } from "../types";
 	import { createEventDispatcher } from "svelte";
+	import type { RecentViewedRenderItem } from "../types";
 
-	export let renderItems: MostViewedRenderItem[];
+	export let renderItems: RecentViewedRenderItem[];
 	export let emptyText: string;
 	const dispatch = createEventDispatcher();
 
@@ -15,7 +15,7 @@
 {#if renderItems.length == 0}
 	<div class="pane-empty">{emptyText}</div>
 {:else}
-	{#each renderItems as { file, displayName, viewCount }}
+	{#each renderItems as { file, displayName, lastViewedMillis, lastViewedLabel }}
 		<div class="tree-item">
 			<div
 				role="button"
@@ -32,8 +32,8 @@
 					<div class="tree-item-inner-text">{displayName}</div>
 				</div>
 				<div class="tree-item-flair-outer">
-					<div class="tree-item-flair">
-						{viewCount}
+					<div class="tree-item-flair" title={new Date(lastViewedMillis).toLocaleString()}>
+						{lastViewedLabel}
 					</div>
 				</div>
 			</div>

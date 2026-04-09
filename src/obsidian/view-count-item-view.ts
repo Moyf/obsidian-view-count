@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf } from "obsidian";
+import { ItemView, WorkspaceLeaf, getLanguage } from "obsidian";
 import { VIEW_COUNT_ITEM_VIEW } from "src/constants";
 import ViewCountPlugin from "src/main";
 import ItemViewApp from "src/svelte/index.svelte";
@@ -19,6 +19,10 @@ export default class ViewCountItemView extends ItemView {
 	}
 
 	getDisplayText() {
+		const locale = getLanguage();
+		if (locale === "zh-CN" || locale.startsWith("zh")) {
+			return "浏览统计";
+		}
 		return "View count";
 	}
 

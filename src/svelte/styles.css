@@ -9,3 +9,55 @@
 .view-content.view-count-view {
 	padding: var(--size-4-3) var(--size-4-3) var(--size-4-8);
 }
+
+.nav-buttons-container {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+}
+
+.view-count-search-row {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	padding-top: var(--size-4-2);
+}
+
+.nav-buttons-group {
+	display: flex;
+	align-items: center;
+	gap: var(--size-2-1);
+}
+
+.nav-buttons-group--actions {
+	margin-left: auto;
+}
+
+.view-count-search-input {
+	flex: 1;
+	min-width: 0;
+	height: var(--input-height);
+	padding: 0 var(--size-4-3);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--input-radius);
+	background: var(--background-secondary);
+	color: var(--text-normal);
+	font-size: var(--font-ui-small);
+	transition: border-color 120ms ease, box-shadow 120ms ease,
+		background-color 120ms ease;
+}
+
+.view-count-search-input::placeholder {
+	color: var(--text-faint);
+}
+
+.view-count-search-input:hover {
+	background: var(--background-secondary-alt);
+}
+
+.view-count-search-input:focus {
+	outline: none;
+	border-color: var(--interactive-accent);
+	box-shadow: 0 0 0 1px var(--interactive-accent);
+	background: var(--background-primary);
+}

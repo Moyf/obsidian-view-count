@@ -60,11 +60,17 @@ const context = await esbuild.context({
 	outfile: "dist/main.js",
 	plugins: [
 		rebuildPlugin,
-		esbuildSvelte({
-			compilerOptions: { css: "external" },
-			preprocess: sveltePreprocess(),
-		}),
-	],
+			esbuildSvelte({
+				compilerOptions: { css: "external" },
+				preprocess: sveltePreprocess({
+					typescript: {
+						compilerOptions: {
+							verbatimModuleSyntax: true,
+						},
+					},
+				}),
+			}),
+		],
 });
 
 if (prod) {

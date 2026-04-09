@@ -7,6 +7,7 @@ import {
 } from "obsidian";
 import ViewCountPlugin from "src/main";
 import * as ObsidianModule from "obsidian";
+import type { DefaultOpenMode } from "src/types";
 
 import {
 	LOG_LEVEL_DEBUG,
@@ -25,29 +26,42 @@ class ViewCountSettingsTab extends PluginSettingTab {
 	private readonly locale = getLanguage();
 
 	private readonly zhCN: Record<string, string> = {
-		"group.counting": "计数规则",
 		"group.newNote": "新笔记行为",
-		"group.frontmatter": "Frontmatter 同步",
+		"group.frontmatter": "属性同步",
+		"group.stats": "浏览统计",
 		"group.debug": "调试",
 		"setting.countMethod.name": "计数方式",
 		"setting.countMethod.desc": "用于计算浏览次数的方法。",
+		"setting.displayNameProperty.name": "显示名称属性",
+		"setting.displayNameProperty.desc": "面板里优先使用该元数据属性作为笔记名称，缺失时回退到文件名。",
+		"setting.defaultOpenMode.name": "默认打开方式",
+		"setting.defaultOpenMode.desc": "点击面板中的笔记时，默认如何打开。",
+		"setting.recentFallbackModified.name": "兼容修改时间",
+		"setting.recentFallbackModified.desc": "当笔记没有找到查看时间属性时，使用其修改时间作为查看时间。启用后，最近查看会先尝试修改时间属性，最后回退到文件本身修改时间。仅影响查看，不会写入属性。",
+		"setting.recentModifiedProp.name": "修改时间属性",
+		"setting.recentModifiedProp.desc": "用于读取修改时间的元数据属性。仅影响查看，不会写入。",
+		"option.open.current": "替换当前标签页",
+		"option.open.tab": "新标签页",
+		"option.open.window": "新窗口",
+		"option.open.splitRight": "右侧分栏",
+		"option.open.splitDown": "下方分栏",
 		"option.uniqueDays": "按打开天数去重",
 		"option.totalTimes": "总打开次数",
 		"setting.excludedPaths.name": "排除路径",
 		"setting.excludedPaths.desc": "要排除统计的文件夹路径。支持英文逗号或换行分隔。",
 		"setting.skipNewNotes.name": "跳过新笔记",
-		"setting.skipNewNotes.desc": "启用后，新建笔记首次打开会跳过计数和 frontmatter 写入。",
+		"setting.skipNewNotes.desc": "启用后，新建笔记首次打开会跳过计数和元数据写入。",
 		"setting.templaterDelay.name": "Templater 延迟",
-		"setting.templaterDelay.desc": "新笔记首次打开时写入 frontmatter 前的等待时间（适用于 Templater）。",
+		"setting.templaterDelay.desc": "新笔记首次打开时写入元数据前的等待时间（适用于 Templater）。",
 		"setting.syncViewCount.name": "同步浏览次数",
-		"setting.syncViewCount.desc": "将缓存中的浏览次数写入现有笔记 frontmatter。",
+		"setting.syncViewCount.desc": "将缓存中的浏览次数写入现有笔记元数据。",
 		"setting.viewCountProp.name": "浏览次数属性名",
-		"setting.viewCountProp.desc1": "用于保存浏览次数的 frontmatter 属性名。",
+		"setting.viewCountProp.desc1": "用于保存浏览次数的元数据属性名。",
 		"setting.viewCountProp.desc2": "修改前请先在 All Properties 里重命名已有属性。",
 		"setting.syncViewDate.name": "同步查看日期",
-		"setting.syncViewDate.desc": "将最后查看日期写入现有笔记 frontmatter。",
+		"setting.syncViewDate.desc": "将最后查看日期写入现有笔记元数据。",
 		"setting.viewDateProp.name": "查看日期属性名",
-		"setting.viewDateProp.desc1": "用于保存查看日期的 frontmatter 属性名。",
+		"setting.viewDateProp.desc1": "用于保存查看日期的元数据属性名。",
 		"setting.viewDateProp.desc2": "修改前请先在 All Properties 里重命名已有属性。",
 		"setting.viewDateFormat.name": "查看日期格式",
 		"setting.viewDateFormat.desc": "Moment.js 格式，例如：YYYY-MM-DD、YYYY/MM/DD HH:mm",
@@ -73,12 +87,12 @@ class ViewCountSettingsTab extends PluginSettingTab {
 		this.plugin = plugin;
 	}
 
-	private createSettingsGroup(containerEl: HTMLElement, heading: string) {
+	private createSettingsGroup(containerEl: HTMLElement, heading?: string) {
 		const supportsSettingGroup = requireApiVersion("1.11.0");
 		const SettingGroupClass = (
 			ObsidianModule as unknown as {
 				SettingGroup?: new (el: HTMLElement) => {
-					setHeading(text: string | DocumentFragment): {
+					setHeading?(text: string | DocumentFragment): {
 						addSetting(cb: (setting: Setting) => void): void;
 					};
 					addSetting(cb: (setting: Setting) => void): void;
@@ -87,7 +101,11 @@ class ViewCountSettingsTab extends PluginSettingTab {
 		).SettingGroup;
 
 		if (supportsSettingGroup && SettingGroupClass) {
-			const group = new SettingGroupClass(containerEl).setHeading(heading);
+			const groupInstance = new SettingGroupClass(containerEl);
+			const group =
+				heading && groupInstance.setHeading
+					? groupInstance.setHeading(heading)
+					: groupInstance;
 			return {
 				addSetting(cb: (setting: Setting) => void) {
 					group.addSetting(cb);
@@ -95,7 +113,9 @@ class ViewCountSettingsTab extends PluginSettingTab {
 			};
 		}
 
-		new Setting(containerEl).setName(heading).setHeading();
+		if (heading) {
+			new Setting(containerEl).setName(heading).setHeading();
+		}
 		return {
 			addSetting(cb: (setting: Setting) => void) {
 				const setting = new Setting(containerEl);
@@ -115,11 +135,9 @@ class ViewCountSettingsTab extends PluginSettingTab {
 
 		containerEl.empty();
 
-		const countingGroup = this.createSettingsGroup(
-			containerEl,
-			this.t("group.counting", "Counting rules")
-		);
-		countingGroup.addSetting((setting) => {
+		const generalGroup = this.createSettingsGroup(containerEl);
+
+		generalGroup.addSetting((setting) => {
 			setting
 				.setName(this.t("setting.countMethod.name", "Count method"))
 				.setDesc(this.t("setting.countMethod.desc", "Method used to calculate view counts."))
@@ -142,7 +160,28 @@ class ViewCountSettingsTab extends PluginSettingTab {
 				);
 		});
 
-		countingGroup.addSetting((setting) => {
+		generalGroup.addSetting((setting) => {
+			setting
+				.setName(this.t("setting.displayNameProperty.name", "Display name property"))
+				.setDesc(
+					this.t(
+						"setting.displayNameProperty.desc",
+						"Use this metadata property as note title in panel lists. Fallback to filename when missing."
+					)
+				)
+				.addText((component) =>
+					component
+						.setPlaceholder("title")
+						.setValue(this.plugin.settings.displayNameProperty)
+						.onChange(async (value) => {
+							this.plugin.settings.displayNameProperty = value.trim() || "title";
+							await this.plugin.saveSettings();
+							await viewCountCache.debounceRefresh();
+						})
+				);
+		});
+
+		generalGroup.addSetting((setting) => {
 			setting
 				.setName(this.t("setting.excludedPaths.name", "Excluded paths"))
 				.setDesc(
@@ -175,7 +214,7 @@ class ViewCountSettingsTab extends PluginSettingTab {
 				.setDesc(
 					this.t(
 						"setting.skipNewNotes.desc",
-						"When enabled, new note first open will skip count increment and frontmatter writes."
+						"When enabled, new note first open will skip count increment and metadata writes."
 					)
 				)
 				.addToggle((component) =>
@@ -195,7 +234,7 @@ class ViewCountSettingsTab extends PluginSettingTab {
 				.setDesc(
 					this.t(
 						"setting.templaterDelay.desc",
-						"Delay before frontmatter write on new-note first open. Useful when Templater is enabled."
+						"Delay before metadata write on new-note first open. Useful when Templater is enabled."
 					)
 				)
 				.addDropdown((cb) => {
@@ -218,7 +257,7 @@ class ViewCountSettingsTab extends PluginSettingTab {
 
 		const frontmatterGroup = this.createSettingsGroup(
 			containerEl,
-			this.t("group.frontmatter", "Frontmatter sync")
+			this.t("group.frontmatter", "Metadata sync")
 		);
 		frontmatterGroup.addSetting((setting) => {
 			setting
@@ -226,7 +265,7 @@ class ViewCountSettingsTab extends PluginSettingTab {
 				.setDesc(
 					this.t(
 						"setting.syncViewCount.desc",
-						"Write view count from cache to frontmatter for existing notes."
+						"Write view count from cache to metadata for existing notes."
 					)
 				)
 				.addToggle((component) =>
@@ -243,7 +282,10 @@ class ViewCountSettingsTab extends PluginSettingTab {
 
 		const viewCountDesc = new DocumentFragment();
 		viewCountDesc.createDiv({
-			text: this.t("setting.viewCountProp.desc1", "Property name for view count."),
+			text: this.t(
+				"setting.viewCountProp.desc1",
+				"Metadata property name for view count."
+			),
 		});
 		viewCountDesc.createEl("br");
 		viewCountDesc.createDiv({
@@ -275,7 +317,7 @@ class ViewCountSettingsTab extends PluginSettingTab {
 				.setDesc(
 					this.t(
 						"setting.syncViewDate.desc",
-						"Write last viewed date to frontmatter for existing notes."
+						"Write last viewed date to metadata for existing notes."
 					)
 				)
 				.addToggle((component) =>
@@ -292,7 +334,10 @@ class ViewCountSettingsTab extends PluginSettingTab {
 
 		const viewDatePropertyDesc = new DocumentFragment();
 		viewDatePropertyDesc.createDiv({
-			text: this.t("setting.viewDateProp.desc1", "Property name for viewed date."),
+			text: this.t(
+				"setting.viewDateProp.desc1",
+				"Metadata property name for viewed date."
+			),
 		});
 		viewDatePropertyDesc.createEl("br");
 		viewDatePropertyDesc.createDiv({
@@ -333,6 +378,79 @@ class ViewCountSettingsTab extends PluginSettingTab {
 						});
 				});
 		});
+
+		const statsGroup = this.createSettingsGroup(
+			containerEl,
+			this.t("group.stats", "View statistics")
+		);
+
+		statsGroup.addSetting((setting) => {
+			setting
+				.setName(this.t("setting.defaultOpenMode.name", "Default open mode"))
+				.setDesc(
+					this.t(
+						"setting.defaultOpenMode.desc",
+						"How to open notes when clicked in the panel."
+					)
+				)
+				.addDropdown((component) =>
+					component
+						.addOption("current", this.t("option.open.current", "Replace current tab"))
+						.addOption("tab", this.t("option.open.tab", "New tab"))
+						.addOption("window", this.t("option.open.window", "New window"))
+						.addOption("split-right", this.t("option.open.splitRight", "Split right"))
+						.addOption("split-down", this.t("option.open.splitDown", "Split down"))
+						.setValue(this.plugin.settings.defaultOpenMode)
+						.onChange(async (value) => {
+							this.plugin.settings.defaultOpenMode = value as DefaultOpenMode;
+							await this.plugin.saveSettings();
+						})
+				);
+		});
+
+		statsGroup.addSetting((setting) => {
+			setting
+				.setName(this.t("setting.recentFallbackModified.name", "Fallback to modified time"))
+				.setDesc(
+					this.t(
+						"setting.recentFallbackModified.desc",
+						"When enabled, if Recent cannot find viewed date property, it falls back to modified-date property, then file modified time. This only affects display and never writes properties."
+					)
+				)
+				.addToggle((component) =>
+					component
+						.setValue(this.plugin.settings.recentFallbackToModifiedTime)
+						.onChange(async (value) => {
+							this.plugin.settings.recentFallbackToModifiedTime = value;
+							await this.plugin.saveSettings();
+							await viewCountCache.debounceRefresh();
+							this.display();
+						})
+				);
+		});
+
+		if (this.plugin.settings.recentFallbackToModifiedTime) {
+			statsGroup.addSetting((setting) => {
+				setting
+					.setName(this.t("setting.recentModifiedProp.name", "Modified time property"))
+					.setDesc(
+						this.t(
+							"setting.recentModifiedProp.desc",
+							"Metadata property used for modified time lookup. This only affects display and never writes."
+						)
+					)
+					.addText((component) =>
+						component
+							.setPlaceholder("modified_at")
+							.setValue(this.plugin.settings.recentModifiedTimePropertyName)
+							.onChange(async (value) => {
+								this.plugin.settings.recentModifiedTimePropertyName = value.trim();
+								await this.plugin.saveSettings();
+								await viewCountCache.debounceRefresh();
+							})
+					);
+			});
+		}
 
 		const debugGroup = this.createSettingsGroup(
 			containerEl,

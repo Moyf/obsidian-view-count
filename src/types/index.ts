@@ -1,5 +1,9 @@
 export interface ViewCountPluginSettings {
 	countMethod: CountMethod;
+	displayNameProperty: string;
+	defaultOpenMode: DefaultOpenMode;
+	recentFallbackToModifiedTime: boolean;
+	recentModifiedTimePropertyName: string;
 	syncToFrontmatter: boolean;
 	skipNewNotes: boolean;
 	propertyName: string;
@@ -18,9 +22,17 @@ export interface ViewCountPluginSettings {
 export enum TView {
 	VIEWS = "views",
 	TRENDS = "trends",
+	RECENT = "recent",
 }
 
 export type CountMethod = "unique-days-opened" | "total-times-opened";
+
+export type DefaultOpenMode =
+	| "current"
+	| "tab"
+	| "window"
+	| "split-right"
+	| "split-down";
 
 export type ItemCount = 10 | 15 | 20 | 25 | 50 | 100;
 

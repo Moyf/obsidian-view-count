@@ -1,4 +1,4 @@
-import { Plugin, TFile } from "obsidian";
+import { Notice, Plugin, TFile, getLanguage } from "obsidian";
 import ViewCountSettingsTab from "./obsidian/view-count-settings-tab";
 import { TView, TimePeriod, ViewCountPluginSettings } from "./types";
 import ViewCountItemView from "./obsidian/view-count-item-view";
@@ -51,7 +51,10 @@ export default class ViewCountPlugin extends Plugin {
 
 		this.addCommand({
 			id: "open-view-count",
-			name: "Open view count view",
+			name:
+				getLanguage() === "zh-CN" || getLanguage().startsWith("zh")
+					? "打开浏览统计面板"
+					: "Open view count view",
 			callback: () => {
 				this.openViewCountView(true);
 			},
@@ -145,6 +148,10 @@ export default class ViewCountPlugin extends Plugin {
 						countMethod: typedData.viewCountType,
 						propertyName: typedData.viewCountPropertyName,
 						syncToFrontmatter: typedData.saveViewCountToFrontmatter,
+						currentView:
+							typedData.currentView === "trends"
+								? TView.TRENDS
+								: TView.VIEWS,
 					};
 					delete (newData as any).viewCountType;
 					delete (newData as any).viewCountPropertyName;
@@ -242,6 +249,49 @@ export default class ViewCountPlugin extends Plugin {
 				type: VIEW_COUNT_ITEM_VIEW,
 				active,
 			});
+		}
+	}
+
+	async openFileFromPanel(file: TFile) {
+		const mode = this.settings.defaultOpenMode;
+
+		try {
+			if (mode === "split-right") {
+				const leaf = this.app.workspace.getLeaf("split", "vertical");
+				await leaf.openFile(file, { active: true });
+				return;
+			}
+
+			if (mode === "split-down") {
+				const leaf = this.app.workspace.getLeaf("split", "horizontal");
+				await leaf.openFile(file, { active: true });
+				return;
+			}
+
+			const leafTypeMap = {
+				current: false,
+				tab: "tab",
+				window: "window",
+			} as const;
+
+			const leaf = this.app.workspace.getLeaf(leafTypeMap[mode]);
+			await leaf.openFile(file, { active: true });
+		} catch (error) {
+			Logger.warn(
+				{
+					fileName: "main.ts",
+					functionName: "openFileFromPanel",
+					message: "failed to open file with preferred mode. falling back to current leaf",
+				},
+				{ mode, filePath: file.path, error }
+			);
+			const fallbackLeaf = this.app.workspace.getLeaf(false);
+			await fallbackLeaf.openFile(file, { active: true });
+			new Notice(
+				getLanguage() === "zh-CN" || getLanguage().startsWith("zh")
+					? "默认打开方式不可用，已回退到当前标签页"
+					: "Preferred open mode unavailable, fell back to current tab"
+			);
 		}
 	}
 
