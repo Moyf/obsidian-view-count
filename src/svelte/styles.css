@@ -61,3 +61,28 @@
 	box-shadow: 0 0 0 1px var(--interactive-accent);
 	background: var(--background-primary);
 }
+
+.view-count-view .tree-item-self.is-clickable {
+	cursor: var(--cursor-link);
+}
+
+.view-count-group-header {
+	pointer-events: none;
+	margin-top: var(--size-4-1);
+}
+
+.view-count-group-header:first-child {
+	margin-top: 0;
+}
+
+.view-count-group-header .tree-item-self {
+	padding: var(--size-2-1) var(--size-4-2);
+}
+
+.view-count-group-label {
+	font-size: var(--font-ui-smaller);
+	font-weight: var(--font-semibold);
+	color: var(--text-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+}

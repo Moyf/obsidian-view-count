@@ -12,9 +12,12 @@ export interface TrendingRenderItem {
 	timesOpened: number;
 }
 
+export type TimeGroup = "today" | "yesterday" | "within-3-days" | "earlier";
+
 export interface RecentViewedRenderItem {
 	file: TFile;
 	displayName: string;
 	lastViewedMillis: number;
 	lastViewedLabel: string;
+	timeGroup: TimeGroup;
 }

@@ -14,6 +14,7 @@
 		MostViewedRenderItem,
 		TrendingRenderItem,
 		RecentViewedRenderItem,
+		TimeGroup,
 	} from "./types";
 	import IconButton from "./components/icon-button.svelte";
 	import type ViewCountPlugin from "src/main";
@@ -49,7 +50,11 @@
 		| "recent.today"
 		| "recent.yesterday"
 		| "recent.dayBeforeYesterday"
-		| "recent.daysAgo";
+		| "recent.daysAgo"
+		| "recent.group.today"
+		| "recent.group.yesterday"
+		| "recent.group.withinThreeDays"
+		| "recent.group.earlier";
 
 	const zhCN: Record<TranslationKey, string> = {
 		"tab.views": "查看次数",
@@ -77,6 +82,10 @@
 		"recent.yesterday": "昨天",
 		"recent.dayBeforeYesterday": "前天",
 		"recent.daysAgo": "天前",
+		"recent.group.today": "今天",
+		"recent.group.yesterday": "昨天",
+		"recent.group.withinThreeDays": "3 天内",
+		"recent.group.earlier": "更早以前",
 	};
 
 	const enUS: Record<TranslationKey, string> = {
@@ -105,6 +114,10 @@
 		"recent.yesterday": "Yesterday",
 		"recent.dayBeforeYesterday": "Day before yesterday",
 		"recent.daysAgo": "days ago",
+		"recent.group.today": "Today",
+		"recent.group.yesterday": "Yesterday",
+		"recent.group.withinThreeDays": "Within 3 days",
+		"recent.group.earlier": "Earlier",
 	};
 
 	function t(key: TranslationKey) {
@@ -311,6 +324,38 @@
 		return `${daysDiff} ${t("recent.daysAgo")}`;
 	}
 
+	function getTimeGroup(lastViewedMillis: number): TimeGroup {
+		const oneDayMillis = 24 * 60 * 60 * 1000;
+		const now = new Date();
+		const todayStart = new Date(
+			now.getFullYear(),
+			now.getMonth(),
+			now.getDate(),
+		).getTime();
+		const target = new Date(lastViewedMillis);
+		const targetStart = new Date(
+			target.getFullYear(),
+			target.getMonth(),
+			target.getDate(),
+		).getTime();
+		const daysDiff = Math.floor((todayStart - targetStart) / oneDayMillis);
+
+		if (daysDiff <= 0) return "today";
+		if (daysDiff === 1) return "yesterday";
+		if (daysDiff <= 3) return "within-3-days";
+		return "earlier";
+	}
+
+	function getTimeGroupLabel(group: TimeGroup): string {
+		const map: Record<TimeGroup, TranslationKey> = {
+			"today": "recent.group.today",
+			"yesterday": "recent.group.yesterday",
+			"within-3-days": "recent.group.withinThreeDays",
+			"earlier": "recent.group.earlier",
+		};
+		return t(map[group]);
+	}
+
 	function updateRecentItems() {
 		if (!plugin.viewCountCache) {
 			recentRenderItems = [];
@@ -344,6 +389,7 @@
 				displayName: getDisplayName(file),
 				lastViewedMillis,
 				lastViewedLabel: formatRecentLabel(lastViewedMillis),
+				timeGroup: getTimeGroup(lastViewedMillis),
 			});
 		});
 
@@ -709,6 +755,7 @@
 		<RecentView
 			renderItems={recentRenderItems}
 			emptyText={t("empty")}
+			{getTimeGroupLabel}
 			on:itemClick={handleItemClick}
 		/>
 	{/if}
