@@ -741,6 +741,7 @@
 		<ViewsView
 			renderItems={viewRenderItems}
 			emptyText={t("empty")}
+			searchQuery={searchQuery}
 			on:itemClick={handleItemClick}
 		/>
 	{/if}
@@ -748,6 +749,7 @@
 		<TrendsView
 			renderItems={trendRenderItems}
 			emptyText={t("empty")}
+			searchQuery={searchQuery}
 			on:itemClick={handleItemClick}
 		/>
 	{/if}
@@ -755,6 +757,7 @@
 		<RecentView
 			renderItems={recentRenderItems}
 			emptyText={t("empty")}
+			searchQuery={searchQuery}
 			{getTimeGroupLabel}
 			on:itemClick={handleItemClick}
 		/>

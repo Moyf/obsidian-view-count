@@ -2,9 +2,11 @@
 	import type { TFile } from "obsidian";
 	import { createEventDispatcher } from "svelte";
 	import type { RecentViewedRenderItem, TimeGroup } from "../types";
+	import { highlightMatchHtml } from "../highlight";
 
 	export let renderItems: RecentViewedRenderItem[];
 	export let emptyText: string;
+	export let searchQuery = "";
 	export let getTimeGroupLabel: (group: TimeGroup) => string;
 	const dispatch = createEventDispatcher();
 
@@ -47,7 +49,13 @@
 				}}
 			>
 				<div class="tree-item-inner">
-					<div class="tree-item-inner-text">{displayName}</div>
+					<div class="tree-item-inner-text">
+						{#if highlightMatchHtml(displayName, searchQuery)}
+							{@html highlightMatchHtml(displayName, searchQuery)}
+						{:else}
+							{displayName}
+						{/if}
+					</div>
 				</div>
 				<div class="tree-item-flair-outer">
 					<div class="tree-item-flair" title={new Date(lastViewedMillis).toLocaleString()}>
