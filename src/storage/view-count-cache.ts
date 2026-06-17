@@ -467,7 +467,7 @@ export default class ViewCountCache {
 			functionName: "updateFrontmatterProperties",
 			message: "called",
 		});
-		const { propertyName, countMethod, viewDatePropertyName, viewDateFormat } = this.settings;
+		const { propertyName, countMethod, viewDatePropertyName, viewDateFormat, requiredProperties } = this.settings;
 
 		const entry = this.entries.find((entry) => entry.path === file.path);
 		if (!entry) {
@@ -475,6 +475,26 @@ export default class ViewCountCache {
 		}
 
 		await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
+			// Check required properties - skip if any required property is missing
+			if (requiredProperties.trim() !== "") {
+				const required = requiredProperties
+					.split(",")
+					.map((p) => p.trim())
+					.filter((p) => p.length > 0);
+				const hasAll = required.every((prop) => Object.prototype.hasOwnProperty.call(frontmatter, prop) && frontmatter[prop] !== undefined && frontmatter[prop] !== null);
+				if (!hasAll) {
+					Logger.debug(
+						{
+							fileName: "view-count-cache.ts",
+							functionName: "updateFrontmatterProperties",
+							message: "skipping frontmatter update: required properties not present",
+						},
+						{ path: file.path, required }
+					);
+					return;
+				}
+			}
+
 			if (updateViewCount) {
 				const viewCount = countMethod === "unique-days-opened"
 					? entry.uniqueDaysOpened

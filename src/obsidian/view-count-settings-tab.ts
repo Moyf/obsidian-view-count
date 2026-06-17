@@ -65,6 +65,9 @@ class ViewCountSettingsTab extends PluginSettingTab {
 		"setting.viewDateProp.desc2": "修改前请先在 All Properties 里重命名已有属性。",
 		"setting.viewDateFormat.name": "查看日期格式",
 		"setting.viewDateFormat.desc": "Moment.js 格式，例如：YYYY-MM-DD、YYYY/MM/DD HH:mm",
+		"setting.requiredProperties.name": "依赖属性",
+		"setting.requiredProperties.desc": "仅当笔记同时包含这些属性时，才写入 view_count / viewed_at。用英文逗号分隔多个属性，留空则不做校检。",
+		"setting.requiredProperties.placeholder": "title, created_at",
 		"setting.logLevel.name": "日志级别",
 		"setting.logLevel.desc": "设置日志级别；选择 trace 可查看全部日志。",
 		"log.off": "关闭",
@@ -374,6 +377,26 @@ class ViewCountSettingsTab extends PluginSettingTab {
 						.setDisabled(!this.plugin.settings.syncViewDateToFrontmatter)
 						.onChange(async (value) => {
 							this.plugin.settings.viewDateFormat = value || "YYYY-MM-DD";
+							await this.plugin.saveSettings();
+						});
+				});
+		});
+
+		frontmatterGroup.addSetting((setting) => {
+			setting
+				.setName(this.t("setting.requiredProperties.name", "Required properties"))
+				.setDesc(
+					this.t(
+						"setting.requiredProperties.desc",
+						"Only update notes that already have all these properties. Use commas to separate multiple properties. Leave empty to update all notes."
+					)
+				)
+				.addText((text) => {
+					text
+						.setPlaceholder(this.t("setting.requiredProperties.placeholder", "title, created_at"))
+						.setValue(this.plugin.settings.requiredProperties)
+						.onChange(async (value) => {
+							this.plugin.settings.requiredProperties = value;
 							await this.plugin.saveSettings();
 						});
 				});

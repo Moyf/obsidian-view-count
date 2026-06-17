@@ -13,6 +13,7 @@ export interface ViewCountPluginSettings {
 	pluginVersion: string;
 	logLevel: string;
 	excludedPaths: string[];
+	requiredProperties: string;
 	templaterDelay: number;
 	currentView: TView;
 	timePeriod: TimePeriod;

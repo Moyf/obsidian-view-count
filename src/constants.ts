@@ -18,6 +18,7 @@ export const DEFAULT_SETTINGS: ViewCountPluginSettings = {
 	pluginVersion: "",
 	logLevel: LOG_LEVEL_OFF,
 	excludedPaths: [],
+	requiredProperties: "",
 	templaterDelay: 0,
 	currentView: TView.RECENT,
 	timePeriod: TimePeriod.DAYS_3,
