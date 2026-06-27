@@ -156,39 +156,30 @@ class ViewCountSettingsTab extends PluginSettingTab {
 			return;
 		}
 
-		const applyWrite = async () => {
-			this.plugin.settings[opts.settingKey] = true;
+		const switchToggle = async (
+			sideEffect?: () => Promise<number | void>
+		) => {
+			this.plugin.settings[opts.settingKey] = value;
 			await this.plugin.saveSettings();
-			const processed = await opts.write();
-			new Notice(
-				this.t("notice.wrote", "Wrote to {count} notes").replace(
-					"{count}",
-					String(processed)
-				)
-			);
-			await viewCountCache.debounceRefresh();
 			this.display();
-		};
-
-		const applyRemove = async () => {
-			this.plugin.settings[opts.settingKey] = false;
-			await this.plugin.saveSettings();
-			const processed = await opts.remove();
-			new Notice(
-				this.t("notice.removed", "Removed properties from {count} notes").replace(
-					"{count}",
-					String(processed)
-				)
-			);
+			if (sideEffect) {
+				const processed = await sideEffect();
+				if (typeof processed === "number" && processed >= 0) {
+					new Notice(
+						(value
+							? this.t("notice.wrote", "Wrote to {count} notes")
+							: this.t("notice.removed", "Removed properties from {count} notes")
+						).replace("{count}", String(processed))
+					);
+				}
+			}
 			await viewCountCache.debounceRefresh();
-			this.display();
 		};
 
 		if (value) {
 			const count = viewCountCache.countValidEntries(opts.requireOpenLog);
 			if (count === 0) {
-				this.plugin.settings[opts.settingKey] = true;
-				void this.plugin.saveSettings().then(() => this.display());
+				void switchToggle();
 				return;
 			}
 			new ConfirmModal(this.app, {
@@ -200,10 +191,10 @@ class ViewCountSettingsTab extends PluginSettingTab {
 				confirmText: this.t("modal.write.confirm", "Write"),
 				cancelText: this.t("modal.cancel", "Cancel"),
 				onConfirm: () => {
-					void applyWrite();
+					void switchToggle(() => opts.write());
 				},
 				onCancel: () => {
-					this.display();
+					void switchToggle();
 				},
 			}).open();
 		} else {
@@ -230,15 +221,15 @@ class ViewCountSettingsTab extends PluginSettingTab {
 						cancelText: this.t("modal.cancel", "Cancel"),
 						isWarning: true,
 						onConfirm: () => {
-							void applyRemove();
+							void switchToggle(() => opts.remove());
 						},
 						onCancel: () => {
-							this.display();
+							void switchToggle();
 						},
 					}).open();
 				},
 				onCancel: () => {
-					this.display();
+					void switchToggle();
 				},
 			}).open();
 		}
