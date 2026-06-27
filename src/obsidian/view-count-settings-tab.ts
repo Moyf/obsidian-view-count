@@ -1,11 +1,13 @@
 import {
 	App,
+	Notice,
 	PluginSettingTab,
 	Setting,
 	requireApiVersion,
 	getLanguage,
 } from "obsidian";
 import ViewCountPlugin from "src/main";
+import { ConfirmModal } from "./confirm-modal";
 import * as ObsidianModule from "obsidian";
 import type { DefaultOpenMode } from "src/types";
 
@@ -76,6 +78,18 @@ class ViewCountSettingsTab extends PluginSettingTab {
 		"log.info": "信息",
 		"log.debug": "调试",
 		"log.trace": "追踪",
+		"modal.cancel": "取消",
+		"modal.write.title": "写入查看数据",
+		"modal.write.message": "找到插件内已有 {count} 条笔记的查看数据，是否批量写入到笔记属性？",
+		"modal.write.confirm": "写入",
+		"modal.remove.title": "移除属性？",
+		"modal.remove.message": "是否移除笔记的属性？",
+		"modal.remove.confirm": "继续",
+		"modal.remove.confirmTitle": "确认移除",
+		"modal.remove.confirmMessage": "将移除 {count} 条笔记的 '{prop}' 属性，该操作会造成大量文件变动，您确认吗？",
+		"modal.remove.confirmBtn": "确认移除",
+		"notice.wrote": "已写入 {count} 条笔记",
+		"notice.removed": "已移除 {count} 条笔记的属性",
 	};
 
 	private t(key: string, en: string): string {
@@ -125,6 +139,109 @@ class ViewCountSettingsTab extends PluginSettingTab {
 				cb(setting);
 			},
 		};
+	}
+
+	private handleFrontmatterSyncToggle(
+		value: boolean,
+		opts: {
+			settingKey: "syncToFrontmatter" | "syncViewDateToFrontmatter";
+			propertyName: string;
+			requireOpenLog: boolean;
+			write: () => Promise<number>;
+			remove: () => Promise<number>;
+		}
+	): void {
+		const viewCountCache = this.plugin.viewCountCache;
+		if (viewCountCache === null) {
+			return;
+		}
+
+		const applyWrite = async () => {
+			this.plugin.settings[opts.settingKey] = true;
+			await this.plugin.saveSettings();
+			const processed = await opts.write();
+			new Notice(
+				this.t("notice.wrote", "Wrote to {count} notes").replace(
+					"{count}",
+					String(processed)
+				)
+			);
+			await viewCountCache.debounceRefresh();
+			this.display();
+		};
+
+		const applyRemove = async () => {
+			this.plugin.settings[opts.settingKey] = false;
+			await this.plugin.saveSettings();
+			const processed = await opts.remove();
+			new Notice(
+				this.t("notice.removed", "Removed properties from {count} notes").replace(
+					"{count}",
+					String(processed)
+				)
+			);
+			await viewCountCache.debounceRefresh();
+			this.display();
+		};
+
+		if (value) {
+			const count = viewCountCache.countValidEntries(opts.requireOpenLog);
+			if (count === 0) {
+				this.plugin.settings[opts.settingKey] = true;
+				void this.plugin.saveSettings().then(() => this.display());
+				return;
+			}
+			new ConfirmModal(this.app, {
+				title: this.t("modal.write.title", "Write view data"),
+				message: this.t(
+					"modal.write.message",
+					"Found view data for {count} notes in the plugin cache. Batch write to note properties?"
+				).replace("{count}", String(count)),
+				confirmText: this.t("modal.write.confirm", "Write"),
+				cancelText: this.t("modal.cancel", "Cancel"),
+				onConfirm: () => {
+					void applyWrite();
+				},
+				onCancel: () => {
+					this.display();
+				},
+			}).open();
+		} else {
+			const count = viewCountCache.countValidEntries(false);
+			new ConfirmModal(this.app, {
+				title: this.t("modal.remove.title", "Remove properties?"),
+				message: this.t(
+					"modal.remove.message",
+					"Remove the properties from notes?"
+				),
+				confirmText: this.t("modal.remove.confirm", "Continue"),
+				cancelText: this.t("modal.cancel", "Cancel"),
+				isWarning: true,
+				onConfirm: () => {
+					new ConfirmModal(this.app, {
+						title: this.t("modal.remove.confirmTitle", "Confirm removal"),
+						message: this.t(
+							"modal.remove.confirmMessage",
+							"This will remove the '{prop}' property from {count} notes. This causes a large number of file changes. Are you sure?"
+						)
+							.replace("{count}", String(count))
+							.replace("{prop}", opts.propertyName),
+						confirmText: this.t("modal.remove.confirmBtn", "Confirm removal"),
+						cancelText: this.t("modal.cancel", "Cancel"),
+						isWarning: true,
+						onConfirm: () => {
+							void applyRemove();
+						},
+						onCancel: () => {
+							this.display();
+						},
+					}).open();
+				},
+				onCancel: () => {
+					this.display();
+				},
+			}).open();
+		}
 	}
 
 
@@ -274,11 +391,14 @@ class ViewCountSettingsTab extends PluginSettingTab {
 				.addToggle((component) =>
 					component
 						.setValue(this.plugin.settings.syncToFrontmatter)
-						.onChange(async (value) => {
-							this.plugin.settings.syncToFrontmatter = value;
-							await this.plugin.saveSettings();
-							await viewCountCache.syncViewCountToFrontmatterOnly();
-							this.display();
+						.onChange((value) => {
+							this.handleFrontmatterSyncToggle(value, {
+								settingKey: "syncToFrontmatter",
+								propertyName: this.plugin.settings.propertyName,
+								requireOpenLog: false,
+								write: () => viewCountCache.writeViewCountFromCache(),
+								remove: () => viewCountCache.removeViewCountProperty(),
+							});
 						})
 				);
 		});
@@ -326,11 +446,14 @@ class ViewCountSettingsTab extends PluginSettingTab {
 				.addToggle((component) =>
 					component
 						.setValue(this.plugin.settings.syncViewDateToFrontmatter)
-						.onChange(async (value) => {
-							this.plugin.settings.syncViewDateToFrontmatter = value;
-							await this.plugin.saveSettings();
-							await viewCountCache.syncViewDateToFrontmatterOnly();
-							this.display();
+						.onChange((value) => {
+							this.handleFrontmatterSyncToggle(value, {
+								settingKey: "syncViewDateToFrontmatter",
+								propertyName: this.plugin.settings.viewDatePropertyName,
+								requireOpenLog: true,
+								write: () => viewCountCache.writeViewDateFromCache(),
+								remove: () => viewCountCache.removeViewDateProperty(),
+							});
 						})
 				);
 		});

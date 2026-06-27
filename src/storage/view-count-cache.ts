@@ -376,34 +376,29 @@ export default class ViewCountCache {
 		return entriesCopy;
 	}
 
+	countValidEntries(requireOpenLog = false): number {
+		let count = 0;
+		for (const entry of this.entries) {
+			const file = this.app.vault.getFileByPath(entry.path);
+			if (!file) continue;
+			if (requireOpenLog && entry.openLogs.length === 0) continue;
+			count++;
+		}
+		return count;
+	}
+
 	async syncPropertiesToFrontmatter() {
 		Logger.trace({
 			fileName: "view-count-cache.ts",
 			functionName: "syncPropertiesToFrontmatter",
 			message: "called",
 		});
-
-		const { syncToFrontmatter, syncViewDateToFrontmatter, propertyName, viewDatePropertyName, countMethod, viewDateFormat } = this.settings;
-		for (const entry of this.entries) {
-			const file = this.app.vault.getFileByPath(entry.path);
-			if (!file) continue;
-
-			await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
-				if (syncToFrontmatter) {
-					const viewCount = countMethod === "unique-days-opened"
-						? entry.uniqueDaysOpened
-						: entry.totalTimesOpened;
-					frontmatter[propertyName] = viewCount;
-				} else {
-					frontmatter[propertyName] = undefined;
-				}
-
-				if (syncViewDateToFrontmatter) {
-					frontmatter[viewDatePropertyName] = window.moment().format(viewDateFormat);
-				} else {
-					frontmatter[viewDatePropertyName] = undefined;
-				}
-			});
+		const { syncToFrontmatter, syncViewDateToFrontmatter } = this.settings;
+		if (syncToFrontmatter) {
+			await this.writeViewCountFromCache();
+		}
+		if (syncViewDateToFrontmatter) {
+			await this.writeViewDateFromCache();
 		}
 	}
 
@@ -413,24 +408,7 @@ export default class ViewCountCache {
 			functionName: "syncViewCountToFrontmatterOnly",
 			message: "called",
 		});
-
-		const { syncToFrontmatter, propertyName, countMethod } = this.settings;
-		for (const entry of this.entries) {
-			const file = this.app.vault.getFileByPath(entry.path);
-			if (!file) continue;
-
-			await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
-				if (syncToFrontmatter) {
-					const viewCount =
-						countMethod === "unique-days-opened"
-							? entry.uniqueDaysOpened
-							: entry.totalTimesOpened;
-					frontmatter[propertyName] = viewCount;
-				} else {
-					frontmatter[propertyName] = undefined;
-				}
-			});
-		}
+		await this.writeViewCountFromCache();
 	}
 
 	async syncViewDateToFrontmatterOnly() {
@@ -439,26 +417,123 @@ export default class ViewCountCache {
 			functionName: "syncViewDateToFrontmatterOnly",
 			message: "called",
 		});
+		await this.writeViewDateFromCache();
+	}
 
-		const {
-			syncViewDateToFrontmatter,
-			viewDatePropertyName,
-			viewDateFormat,
-		} = this.settings;
+	async writeViewCountFromCache(): Promise<number> {
+		Logger.debug(
+			{
+				fileName: "view-count-cache.ts",
+				functionName: "writeViewCountFromCache",
+				message: "writing view count from cache to frontmatter",
+			}
+		);
+		const { propertyName, countMethod } = this.settings;
+		let processed = 0;
 		for (const entry of this.entries) {
 			const file = this.app.vault.getFileByPath(entry.path);
 			if (!file) continue;
-
+			const viewCount = this.getViewCountForEntryByMethod(entry, countMethod);
 			await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
-				if (syncViewDateToFrontmatter) {
-					frontmatter[viewDatePropertyName] = window
-						.moment()
-						.format(viewDateFormat);
-				} else {
-					frontmatter[viewDatePropertyName] = undefined;
-				}
+				frontmatter[propertyName] = viewCount;
 			});
+			processed++;
 		}
+		Logger.debug(
+			{
+				fileName: "view-count-cache.ts",
+				functionName: "writeViewCountFromCache",
+				message: `processed ${processed} files`,
+			}
+		);
+		return processed;
+	}
+
+	async writeViewDateFromCache(): Promise<number> {
+		Logger.debug(
+			{
+				fileName: "view-count-cache.ts",
+				functionName: "writeViewDateFromCache",
+				message: "writing view date from cache to frontmatter",
+			}
+		);
+		const { viewDatePropertyName, viewDateFormat } = this.settings;
+		let processed = 0;
+		for (const entry of this.entries) {
+			const file = this.app.vault.getFileByPath(entry.path);
+			if (!file) continue;
+			const lastOpen = entry.openLogs.last();
+			if (!lastOpen) continue;
+			const formattedDate = window.moment(lastOpen.timestampMillis).format(viewDateFormat);
+			await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
+				frontmatter[viewDatePropertyName] = formattedDate;
+			});
+			processed++;
+		}
+		Logger.debug(
+			{
+				fileName: "view-count-cache.ts",
+				functionName: "writeViewDateFromCache",
+				message: `processed ${processed} files`,
+			}
+		);
+		return processed;
+	}
+
+	async removeViewCountProperty(): Promise<number> {
+		Logger.debug(
+			{
+				fileName: "view-count-cache.ts",
+				functionName: "removeViewCountProperty",
+				message: "removing view count property from frontmatter",
+			}
+		);
+		const { propertyName } = this.settings;
+		let processed = 0;
+		for (const entry of this.entries) {
+			const file = this.app.vault.getFileByPath(entry.path);
+			if (!file) continue;
+			await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
+				frontmatter[propertyName] = undefined;
+			});
+			processed++;
+		}
+		Logger.debug(
+			{
+				fileName: "view-count-cache.ts",
+				functionName: "removeViewCountProperty",
+				message: `processed ${processed} files`,
+			}
+		);
+		return processed;
+	}
+
+	async removeViewDateProperty(): Promise<number> {
+		Logger.debug(
+			{
+				fileName: "view-count-cache.ts",
+				functionName: "removeViewDateProperty",
+				message: "removing view date property from frontmatter",
+			}
+		);
+		const { viewDatePropertyName } = this.settings;
+		let processed = 0;
+		for (const entry of this.entries) {
+			const file = this.app.vault.getFileByPath(entry.path);
+			if (!file) continue;
+			await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
+				frontmatter[viewDatePropertyName] = undefined;
+			});
+			processed++;
+		}
+		Logger.debug(
+			{
+				fileName: "view-count-cache.ts",
+				functionName: "removeViewDateProperty",
+				message: `processed ${processed} files`,
+			}
+		);
+		return processed;
 	}
 
 	private async updateFrontmatterProperties(file: TFile, updateViewCount: boolean, updateViewDate: boolean) {
