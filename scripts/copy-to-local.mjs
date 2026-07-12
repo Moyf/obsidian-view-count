@@ -1,75 +1,50 @@
-import { copyFileSync, mkdirSync, existsSync, readFileSync, writeFileSync } from 'fs';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, isAbsolute, join, parse, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
+const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const envResult = findEnvValue("VAULT_PATH", rootDir);
+const configuredPath = process.env.VAULT_PATH?.trim() || envResult?.value;
+if (!configuredPath) throw new Error("VAULT_PATH is not set. Add it to .env in this repository or a parent directory.");
 
-function loadDotEnv(...candidates) {
-	for (const file of candidates) {
-		if (!existsSync(file)) continue;
-		const content = readFileSync(file, 'utf-8');
-		for (const line of content.split(/\r?\n/)) {
-			const trimmed = line.trim();
-			if (!trimmed || trimmed.startsWith('#')) continue;
-			const eq = trimmed.indexOf('=');
-			if (eq === -1) continue;
-			const key = trimmed.slice(0, eq).trim();
-			let value = trimmed.slice(eq + 1).trim();
-			if (
-				(value.startsWith('"') && value.endsWith('"')) ||
-				(value.startsWith("'") && value.endsWith("'"))
-			) {
-				value = value.slice(1, -1);
-			}
-			if (process.env[key] === undefined) {
-				process.env[key] = value;
-			}
+const vaultPath = isAbsolute(configuredPath) ? configuredPath : resolve(envResult?.directory ?? rootDir, configuredPath);
+const obsidianDir = join(vaultPath, ".obsidian");
+if (!existsSync(vaultPath)) throw new Error(`Vault directory does not exist: ${vaultPath}`);
+if (!existsSync(obsidianDir)) throw new Error(`Vault directory does not contain .obsidian: ${vaultPath}`);
+
+const manifest = JSON.parse(readFileSync(join(rootDir, "dist", "manifest.json"), "utf8"));
+const pluginDir = join(obsidianDir, "plugins", manifest.id);
+mkdirSync(pluginDir, { recursive: true });
+for (const file of ["main.js", "manifest.json", "styles.css"]) {
+	const source = join(rootDir, "dist", file);
+	if (existsSync(source)) copyFileSync(source, join(pluginDir, file));
+	else if (file !== "styles.css") throw new Error(`Required build artifact is missing: ${source}`);
+}
+const hotreload = join(pluginDir, ".hotreload");
+if (!existsSync(hotreload)) writeFileSync(hotreload, "");
+console.log(`Copied ${manifest.id} to ${pluginDir}`);
+
+function findEnvValue(key, startDirectory) {
+	let directory = resolve(startDirectory);
+	const root = parse(directory).root;
+	while (true) {
+		const envPath = join(directory, ".env");
+		if (existsSync(envPath)) {
+			const value = parseEnvValue(readFileSync(envPath, "utf8"), key);
+			if (value !== undefined) return { value, directory };
 		}
-		console.log(`✓ Loaded env from ${file}`);
-		return;
+		if (directory === root) return null;
+		directory = dirname(directory);
 	}
 }
 
-loadDotEnv(
-	join(__dirname, '..', '.env'),
-	join(__dirname, '..', '..', '.env'),
-);
-
-const manifestPath = join(__dirname, '..', 'dist', 'manifest.json');
-const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8'));
-const pluginId = manifest.id;
-
-const vaultPath = process.env.OBSIDIAN_VAULT_PATH;
-if (!vaultPath) {
-	console.error('✖ OBSIDIAN_VAULT_PATH is not set. Configure it in .env (e.g. /Users/moy/Docs/Obsinote).');
-	process.exit(1);
+function parseEnvValue(contents, key) {
+	for (const line of contents.split(/\r?\n/u)) {
+		const match = line.match(/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/u);
+		if (!match || match[1] !== key) continue;
+		const raw = match[2].trim();
+		if ((raw.startsWith('"') && raw.endsWith('"')) || (raw.startsWith("'") && raw.endsWith("'"))) return raw.slice(1, -1);
+		return raw.replace(/\s+#.*$/u, "").trim();
+	}
+	return undefined;
 }
-
-const localPluginPath = join(vaultPath, '.obsidian', 'plugins', pluginId);
-
-if (!existsSync(localPluginPath)) {
-    mkdirSync(localPluginPath, { recursive: true });
-}
-
-const filesToCopy = ['main.js', 'manifest.json', 'styles.css'];
-
-for (const file of filesToCopy) {
-    const src = join(__dirname, '..', 'dist', file);
-    const dest = join(localPluginPath, file);
-
-    if (existsSync(src)) {
-        copyFileSync(src, dest);
-        console.log(`✓ Copied ${file} to local plugins`);
-    } else if (file !== 'styles.css') {
-        console.warn(`⚠ Warning: ${file} not found in dist/`);
-    }
-}
-
-const hotreloadPath = join(localPluginPath, '.hotreload');
-if (!existsSync(hotreloadPath)) {
-    writeFileSync(hotreloadPath, '');
-    console.log(`✓ Created .hotreload file`);
-}
-
-console.log(`\n✅ Build and copy completed for plugin: ${pluginId}`);
-console.log(`📁 Target: ${localPluginPath}`);
