@@ -420,6 +420,89 @@ export default class ViewCountCache {
 		await this.writeViewDateFromCache();
 	}
 
+	async syncFrontmatterToCache(): Promise<number> {
+		Logger.debug({
+			fileName: "view-count-cache.ts",
+			functionName: "syncFrontmatterToCache",
+			message: "syncing frontmatter properties to cache for empty entries",
+		});
+
+		const { propertyName, viewDatePropertyName, countMethod } = this.settings;
+		const files = this.app.vault.getMarkdownFiles();
+		let importedCount = 0;
+
+		for (const file of files) {
+			const frontmatter = this.app.metadataCache.getFileCache(file)?.frontmatter;
+			if (!frontmatter) continue;
+
+			const countVal = frontmatter[propertyName];
+			const dateVal = frontmatter[viewDatePropertyName];
+
+			const numCount = Number(countVal);
+			const hasValidCount =
+				countVal !== undefined &&
+				countVal !== null &&
+				!isNaN(numCount) &&
+				numCount > 0;
+			const hasValidDate =
+				dateVal !== undefined &&
+				dateVal !== null &&
+				String(dateVal).trim() !== "";
+
+			if (!hasValidCount && !hasValidDate) continue;
+
+			let entry = this.entries.find((e) => e.path === file.path);
+			const isEntryEmpty =
+				!entry ||
+				(entry.totalTimesOpened === 0 && entry.openLogs.length === 0);
+
+			if (isEntryEmpty) {
+				const parsedCount = hasValidCount ? numCount : 0;
+				let parsedMillis = 0;
+
+				if (hasValidDate) {
+					const momentFn = (window as any).moment;
+					const momentDate = momentFn ? momentFn(dateVal) : null;
+					if (momentDate && momentDate.isValid()) {
+						parsedMillis = momentDate.valueOf();
+					}
+				}
+
+				const openLogs =
+					parsedMillis > 0 ? [{ timestampMillis: parsedMillis }] : [];
+				const uniqueDaysOpened =
+					countMethod === "unique-days-opened"
+						? parsedCount
+						: parsedCount;
+				const totalTimesOpened = parsedCount;
+
+				if (!entry) {
+					entry = {
+						path: file.path,
+						uniqueDaysOpened,
+						totalTimesOpened,
+						openLogs,
+					};
+					this.entries.push(entry);
+				} else {
+					entry.uniqueDaysOpened = uniqueDaysOpened;
+					entry.totalTimesOpened = totalTimesOpened;
+					if (openLogs.length > 0 && entry.openLogs.length === 0) {
+						entry.openLogs = openLogs;
+					}
+				}
+				importedCount++;
+			}
+		}
+
+		if (importedCount > 0) {
+			await this.save();
+			this.refresh();
+		}
+
+		return importedCount;
+	}
+
 	async writeViewCountFromCache(): Promise<number> {
 		Logger.debug(
 			{
