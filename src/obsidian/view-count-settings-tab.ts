@@ -8,6 +8,7 @@ import {
 } from "obsidian";
 import ViewCountPlugin from "src/main";
 import { ConfirmModal } from "./confirm-modal";
+import { ImportFrontmatterModal } from "./import-frontmatter-modal";
 import * as ObsidianModule from "obsidian";
 import type { DefaultOpenMode } from "src/types";
 
@@ -533,23 +534,32 @@ class ViewCountSettingsTab extends PluginSettingTab {
 				.addButton((button) =>
 					button
 						.setButtonText(this.t("setting.importFrontmatter.btn", "Import to cache"))
-						.onClick(async () => {
-							const count = await viewCountCache.syncFrontmatterToCache();
-							if (count > 0) {
-								new Notice(
-									this.t(
-										"notice.imported",
-										"Imported data from frontmatter for {count} notes"
-									).replace("{count}", String(count))
-								);
-							} else {
-								new Notice(
-									this.t(
-										"notice.noImport",
-										"No notes found with missing cache data and valid frontmatter"
-									)
-								);
-							}
+						.onClick(() => {
+							new ImportFrontmatterModal(this.app, {
+								defaultCountProperty: this.plugin.settings.propertyName,
+								defaultDateProperty: this.plugin.settings.viewDatePropertyName,
+								onImport: async (countProperty, dateProperty) => {
+									const count = await viewCountCache.syncFrontmatterToCache({
+										countProperty: countProperty || undefined,
+										dateProperty: dateProperty || undefined,
+									});
+									if (count > 0) {
+										new Notice(
+											this.t(
+												"notice.imported",
+												"Imported data from frontmatter for {count} notes"
+											).replace("{count}", String(count))
+										);
+									} else {
+										new Notice(
+											this.t(
+												"notice.noImport",
+												"No notes found with missing cache data and valid frontmatter"
+											)
+										);
+									}
+								},
+							}).open();
 						})
 				);
 		});

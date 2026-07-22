@@ -420,14 +420,16 @@ export default class ViewCountCache {
 		await this.writeViewDateFromCache();
 	}
 
-	async syncFrontmatterToCache(): Promise<number> {
+	async syncFrontmatterToCache(overrides?: { countProperty?: string; dateProperty?: string }): Promise<number> {
 		Logger.debug({
 			fileName: "view-count-cache.ts",
 			functionName: "syncFrontmatterToCache",
 			message: "syncing frontmatter properties to cache for empty entries",
 		});
 
-		const { propertyName, viewDatePropertyName, countMethod } = this.settings;
+		const countProp = overrides?.countProperty || this.settings.propertyName;
+		const dateProp = overrides?.dateProperty || this.settings.viewDatePropertyName;
+		const { countMethod } = this.settings;
 		const files = this.app.vault.getMarkdownFiles();
 		let importedCount = 0;
 
@@ -435,8 +437,8 @@ export default class ViewCountCache {
 			const frontmatter = this.app.metadataCache.getFileCache(file)?.frontmatter;
 			if (!frontmatter) continue;
 
-			const countVal = frontmatter[propertyName];
-			const dateVal = frontmatter[viewDatePropertyName];
+			const countVal = frontmatter[countProp];
+			const dateVal = frontmatter[dateProp];
 
 			const numCount = Number(countVal);
 			const hasValidCount =
