@@ -8,6 +8,7 @@ import {
 } from "obsidian";
 import ViewCountPlugin from "src/main";
 import { ConfirmModal } from "./confirm-modal";
+import { ImportFrontmatterModal } from "./import-frontmatter-modal";
 import * as ObsidianModule from "obsidian";
 import type { DefaultOpenMode } from "src/types";
 
@@ -90,6 +91,11 @@ class ViewCountSettingsTab extends PluginSettingTab {
 		"modal.remove.confirmBtn": "确认移除",
 		"notice.wrote": "已写入 {count} 条笔记",
 		"notice.removed": "已移除 {count} 条笔记的属性",
+		"setting.importFrontmatter.name": "从 Frontmatter 导入到缓存",
+		"setting.importFrontmatter.desc": "当插件缓存无数据时，从笔记 frontmatter 导入浏览次数和日期到缓存。",
+		"setting.importFrontmatter.btn": "导入到缓存",
+		"notice.imported": "已从 frontmatter 导入 {count} 条笔记数据",
+		"notice.noImport": "未发现包含有效 frontmatter 且缺乏缓存数据的笔记",
 	};
 
 	private t(key: string, en: string): string {
@@ -514,6 +520,48 @@ class ViewCountSettingsTab extends PluginSettingTab {
 							await this.plugin.saveSettings();
 						});
 				});
+		});
+
+		frontmatterGroup.addSetting((setting) => {
+			setting
+				.setName(this.t("setting.importFrontmatter.name", "Import frontmatter to cache"))
+				.setDesc(
+					this.t(
+						"setting.importFrontmatter.desc",
+						"Import view count and date from note frontmatter into plugin cache for notes with no cached data."
+					)
+				)
+				.addButton((button) =>
+					button
+						.setButtonText(this.t("setting.importFrontmatter.btn", "Import to cache"))
+						.onClick(() => {
+							new ImportFrontmatterModal(this.app, {
+								defaultCountProperty: this.plugin.settings.propertyName,
+								defaultDateProperty: this.plugin.settings.viewDatePropertyName,
+								onImport: async (countProperty, dateProperty) => {
+									const count = await viewCountCache.syncFrontmatterToCache({
+										countProperty: countProperty || undefined,
+										dateProperty: dateProperty || undefined,
+									});
+									if (count > 0) {
+										new Notice(
+											this.t(
+												"notice.imported",
+												"Imported data from frontmatter for {count} notes"
+											).replace("{count}", String(count))
+										);
+									} else {
+										new Notice(
+											this.t(
+												"notice.noImport",
+												"No notes found with missing cache data and valid frontmatter"
+											)
+										);
+									}
+								},
+							}).open();
+						})
+				);
 		});
 
 		const statsGroup = this.createSettingsGroup(
