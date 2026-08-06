@@ -112,7 +112,7 @@
 		"period.month": "This month",
 		"recent.today": "Today",
 		"recent.yesterday": "Yesterday",
-		"recent.dayBeforeYesterday": "Day before yesterday",
+		"recent.dayBeforeYesterday": "2 days ago",
 		"recent.daysAgo": "days ago",
 		"recent.group.today": "Today",
 		"recent.group.yesterday": "Yesterday",
